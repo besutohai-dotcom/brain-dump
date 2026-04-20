@@ -17,12 +17,9 @@ Last updated: 2026-04-21
 - [x] Task editing — inline ✏️ edit title and original text
 - [x] Dark mode — auto-detects iOS/macOS system preference
 - [x] Undo delete — toast with 4-second undo button
-
-## 🔄 In Progress
-- [ ] Priority levels — High / Medium / Low tag on each task
+- [x] Priority levels — High/Medium/Low badge, clickable to cycle, tasks sorted by priority
 
 ## 📋 Planned (priority order)
-- [ ] Priority levels — High / Medium / Low tag on each task
 - [ ] Search bar — filter tasks by keyword
 - [ ] Due dates — optional date picker per task
 - [ ] Swipe to complete / swipe to delete (mobile gesture)
@@ -45,6 +42,7 @@ Last updated: 2026-04-21
 |------|---------|----------|--------|
 | 2026-04-21 | Initial deploy | Setup | ✅ |
 | 2026-04-21 | Task editing, dark mode, undo delete | HTML output verified | ✅ |
+| 2026-04-21 | Priority levels (High/Medium/Low) | Deployed | ✅ |
 
 ## 💡 User Ideas
 - Voice input for easier navigation ✅
@@ -54,3 +52,4 @@ Last updated: 2026-04-21
 ## 📝 Change Log
 - 2026-04-21: Initial deploy, voice input, CORS fix
 - 2026-04-21: Task editing (✏️ inline), dark mode (prefers-color-scheme), undo delete (toast)
+- 2026-04-21: Priority levels — 高/中/低 badge on each task, click to cycle, auto-sort by priority
