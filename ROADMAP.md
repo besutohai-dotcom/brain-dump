@@ -14,14 +14,15 @@ Last updated: 2026-04-21
 - [x] Deployed to GitHub Pages
 - [x] Voice input (Safari browser mode)
 - [x] Fixed CORS header for direct browser API calls
+- [x] Task editing — inline ✏️ edit title and original text
+- [x] Dark mode — auto-detects iOS/macOS system preference
+- [x] Undo delete — toast with 4-second undo button
 
 ## 🔄 In Progress
-- [ ] Task editing — tap title/text to edit inline
+- [ ] Priority levels — High / Medium / Low tag on each task
 
 ## 📋 Planned (priority order)
-- [ ] Task editing — tap title/text to edit inline
 - [ ] Priority levels — High / Medium / Low tag on each task
-- [ ] Dark mode — auto-detect system preference
 - [ ] Search bar — filter tasks by keyword
 - [ ] Due dates — optional date picker per task
 - [ ] Swipe to complete / swipe to delete (mobile gesture)
@@ -30,27 +31,26 @@ Last updated: 2026-04-21
 - [ ] Better onboarding — guided first-use flow
 - [ ] Task notes — expandable sub-notes field
 - [ ] Batch select — checkbox mode, bulk complete/delete
-- [ ] Undo last delete — toast with undo button
 - [ ] Statistics view — tasks done per day, category breakdown
 - [ ] Browser push notifications — remind about active tasks
 - [ ] Recurring tasks — daily/weekly repeat option
-- [ ] Markdown in notes — render **bold**, *italic*, checklists
+- [ ] Markdown in notes — render bold, italic, checklists
 - [ ] Multiple boards — switch between different brain-dump contexts
 - [ ] Share task — copy shareable text summary
-- [ ] Keyboard shortcuts panel
 - [ ] Drag to reorder tasks
 
 ## 🧪 Test Log
-Each cycle the agent calls the Anthropic API with real inputs to verify core features work.
 
-| Date | Input | Categorized As | Status |
-|------|-------|---------------|--------|
-| 2026-04-21 | Setup | — | Initial deploy |
+| Date | Feature | Verified | Status |
+|------|---------|----------|--------|
+| 2026-04-21 | Initial deploy | Setup | ✅ |
+| 2026-04-21 | Task editing, dark mode, undo delete | HTML output verified | ✅ |
 
 ## 💡 User Ideas
-(Ideas from the user added here for future implementation)
 - Voice input for easier navigation ✅
 - Best app possible with AI + user ideas
+- Autonomous improvement loop (this!)
 
 ## 📝 Change Log
 - 2026-04-21: Initial deploy, voice input, CORS fix
+- 2026-04-21: Task editing (✏️ inline), dark mode (prefers-color-scheme), undo delete (toast)
