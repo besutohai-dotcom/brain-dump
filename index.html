@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <!-- iPhone "Add to Home Screen" PWA tags -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="ブレインダンプ">
+  <meta name="theme-color" content="#5856d6">
+  <title>ブレインダンプ</title>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#f5f5f7;--surface:#fff;--border:#e5e5ea;
+      --text:#1d1d1f;--muted:#8e8e93;
+      --primary:#5856d6;--primary-h:#3634a3;
+      --danger:#ff3b30;--success:#34c759;
+      --radius:14px;--shadow:0 2px 12px rgba(0,0,0,.07);
+    }
+    body{
+      font-family:-apple-system,'Hiragino Sans','Hiragino Kaku Gothic ProN',
+        'Noto Sans JP','Yu Gothic',sans-serif;
+      background:var(--bg);color:var(--text);min-height:100vh;
+      -webkit-font-smoothing:antialiased;
+    }
+    .app{
+      max-width:780px;margin:0 auto;
+      padding:calc(24px + env(safe-area-inset-top))
+              calc(16px + env(safe-area-inset-right))
+              calc(80px + env(safe-area-inset-bottom))
+              calc(16px + env(safe-area-inset-left));
+    }
+    /* Header */
+    .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px}
+    .header-left{display:flex;align-items:baseline;gap:12px}
+    .header h1{font-size:1.4rem;font-weight:700;letter-spacing:-.02em;color:var(--primary)}
+    .stats{font-size:.8rem;color:var(--muted)}
+    .header-right{display:flex;gap:8px}
+    .btn-ghost{background:none;border:1px solid var(--border);border-radius:8px;
+      padding:6px 12px;font-size:.82rem;font-family:inherit;cursor:pointer;
+      color:var(--muted);transition:all .15s}
+    .btn-ghost:hover{background:var(--border);color:var(--text)}
+    .btn-ghost.danger:hover{background:#fff0ee;color:var(--danger);border-color:var(--danger)}
+    /* Settings */
+    .settings-panel{background:var(--surface);border:1px solid var(--border);
+      border-radius:var(--radius);padding:20px;margin-bottom:16px;box-shadow:var(--shadow)}
+    .settings-panel h3{font-size:.95rem;margin-bottom:12px}
+    .row{display:flex;gap:8px;margin-bottom:8px}
+    .input{flex:1;padding:10px 12px;border:1px solid var(--border);border-radius:8px;
+      font-size:.9rem;font-family:inherit;outline:none;transition:border-color .15s}
+    .input:focus{border-color:var(--primary)}
+    .input.mono{font-family:'SF Mono',Menlo,monospace;font-size:.85rem}
+    .hint{font-size:.78rem;color:var(--muted);line-height:1.5}
+    /* Input card */
+    .input-card{background:var(--surface);border:1px solid var(--border);
+      border-radius:var(--radius);padding:16px;margin-bottom:14px;box-shadow:var(--shadow)}
+    .main-textarea{width:100%;min-height:96px;padding:10px 12px;
+      border:1px solid var(--border);border-radius:10px;font-size:.95rem;
+      font-family:inherit;line-height:1.65;resize:vertical;outline:none;
+      transition:border-color .15s}
+    .main-textarea:focus{border-color:var(--primary)}
+    .main-textarea:disabled{opacity:.6}
+    .input-footer{display:flex;justify-content:space-between;align-items:center;margin-top:10px}
+    /* Buttons */
+    .btn-primary{background:var(--primary);color:#fff;border:none;border-radius:8px;
+      padding:9px 18px;font-size:.88rem;font-family:inherit;font-weight:500;
+      cursor:pointer;transition:background .15s;display:inline-flex;align-items:center;gap:6px}
+    .btn-primary:hover:not(:disabled){background:var(--primary-h)}
+    .btn-primary:disabled{opacity:.55;cursor:not-allowed}
+    .btn-secondary{background:var(--surface);color:var(--primary);
+      border:1.5px solid var(--primary);border-radius:8px;padding:9px 16px;
+      font-size:.88rem;font-family:inherit;font-weight:500;cursor:pointer;
+      transition:all .15s;white-space:nowrap}
+    .btn-secondary:hover:not(:disabled){background:var(--primary);color:#fff}
+    .btn-secondary:disabled{opacity:.5;cursor:not-allowed}
+    /* Spinner */
+    .spin{display:inline-block;width:12px;height:12px;border:2px solid currentColor;
+      border-top-color:transparent;border-radius:50%;
+      animation:spin .6s linear infinite;vertical-align:middle}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    /* Error */
+    .error-banner{background:#fff5f5;border:1px solid #ffd5d5;color:var(--danger);
+      border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:.88rem}
+    /* Query bar */
+    .query-bar{display:flex;align-items:center;gap:8px;background:var(--surface);
+      border:1px solid var(--border);border-radius:10px;padding:6px 10px 6px 14px;
+      margin-bottom:12px;box-shadow:var(--shadow)}
+    .query-icon{font-size:1rem;flex-shrink:0}
+    .query-input{flex:1;border:none;outline:none;font-size:.88rem;
+      font-family:inherit;background:transparent;color:var(--text)}
+    .query-input::placeholder{color:var(--muted)}
+    /* Query result */
+    .query-result{background:#f3f4ff;border:1px solid #c9cbf5;
+      border-radius:var(--radius);padding:16px;margin-bottom:16px}
+    .qr-header{display:flex;justify-content:space-between;align-items:center;
+      margin-bottom:10px;font-size:.88rem}
+    .close-btn{background:none;border:none;cursor:pointer;color:var(--muted);
+      font-size:1rem;padding:2px 6px;border-radius:4px}
+    .close-btn:hover{background:rgba(0,0,0,.06)}
+    .qr-body p{font-size:.9rem;line-height:1.75;color:var(--text)}
+    .qr-body p:empty{display:none}
+    /* Filter */
+    .filter-bar{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:18px}
+    .chip{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;
+      border-radius:20px;border:1px solid var(--border);background:var(--surface);
+      font-size:.82rem;font-family:inherit;cursor:pointer;color:var(--muted);transition:all .15s}
+    .chip-active{font-weight:500}
+    .count{background:rgba(0,0,0,.08);border-radius:10px;padding:0 6px;font-size:.75rem}
+    .chip-active .count{background:rgba(255,255,255,.25)}
+    /* Task list */
+    .task-list{display:flex;flex-direction:column;gap:10px}
+    .empty-state{text-align:center;padding:60px 20px;color:var(--muted);
+      font-size:1rem;line-height:2}
+    .empty-state small{font-size:.85rem}
+    /* Task card */
+    .task-card{background:var(--surface);border:1px solid var(--border);
+      border-radius:var(--radius);padding:16px;box-shadow:var(--shadow);
+      transition:box-shadow .15s,opacity .2s}
+    .task-card:hover{box-shadow:0 4px 20px rgba(0,0,0,.11)}
+    .task-done{opacity:.55}
+    .task-done .task-title{text-decoration:line-through;color:var(--muted)}
+    .task-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+    .task-labels{display:flex;align-items:center;gap:8px}
+    .tag{font-size:.75rem;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid}
+    .task-date{font-size:.75rem;color:var(--muted)}
+    .task-btns{display:flex;gap:4px}
+    .icon-btn{width:30px;height:30px;border-radius:7px;border:1px solid var(--border);
+      background:none;cursor:pointer;font-size:.88rem;color:var(--muted);
+      display:flex;align-items:center;justify-content:center;transition:all .15s}
+    .icon-btn:hover{background:var(--border);color:var(--text)}
+    .icon-done{color:var(--success);border-color:var(--success)}
+    .icon-done:hover{background:#e8faf0}
+    .icon-del:hover{background:#fff0ee;color:var(--danger);border-color:var(--danger)}
+    .task-title{font-size:1rem;font-weight:600;line-height:1.45;
+      margin-bottom:5px;letter-spacing:-.01em}
+    .task-original{font-size:.855rem;color:var(--muted);line-height:1.65;margin-bottom:12px}
+    /* Next actions */
+    .actions-box{background:#f9f9ff;border-left:3px solid var(--primary);
+      border-radius:0 8px 8px 0;padding:12px 14px;margin-bottom:10px}
+    .actions-label{font-size:.8rem;font-weight:600;margin-bottom:8px;color:var(--primary)}
+    .actions-list{padding-left:18px;display:flex;flex-direction:column;gap:4px}
+    .actions-list li{font-size:.855rem;line-height:1.55;color:var(--text)}
+    /* Suggest btn */
+    .suggest-btn{width:100%;padding:8px;background:none;border:1px dashed var(--border);
+      border-radius:8px;font-size:.83rem;font-family:inherit;color:var(--muted);
+      cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;
+      justify-content:center;gap:6px}
+    .suggest-btn:hover:not(:disabled){border-color:var(--primary);color:var(--primary);background:#f3f4ff}
+    .suggest-btn:disabled{cursor:not-allowed}
+    @media(max-width:500px){
+      .app{padding:16px 12px 60px}
+      .header h1{font-size:1.2rem}
+      .main-textarea{min-height:80px}
+    }
+  </style>
+</head>
+<body>
+<div id="app"></div>
+<script type="module">
+import { h, render, Fragment } from 'https://esm.sh/preact@10.24.3'
+import { useState, useEffect, useCallback, useRef } from 'https://esm.sh/preact@10.24.3/hooks'
+
+// ─── Claude API ───────────────────────────────────────────────────
+async function callClaude(apiKey, prompt, maxTokens = 512) {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model: 'claude-haiku-4-5',
+      max_tokens: maxTokens,
+      messages: [{ role: 'user', content: prompt }],
+    }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err?.error?.message || `APIエラー: ${res.status}`)
+  }
+  const data = await res.json()
+  return data.content[0]?.text ?? ''
+}
+
+async function categorizeTask(apiKey, text, existingCategories) {
+  const catStr = existingCategories.length
+    ? `既存カテゴリ: ${existingCategories.join('、')}`
+    : '既存カテゴリ: なし'
+  const raw = await callClaude(apiKey,
+    `${catStr}\n\n入力テキスト: "${text}"\n\n` +
+    `既存カテゴリに合うものがあればそれを使用。なければ新規作成（仕事/健康/学習/家族/趣味/買い物/自己啓発/人間関係 など）。\n\n` +
+    `JSONのみ返してください：{"title":"簡潔なタイトル","category":"カテゴリ名"}`, 200)
+  const m = raw.match(/\{[^{}]*\}/)
+  if (!m) throw new Error('分類に失敗しました')
+  return JSON.parse(m[0])
+}
+
+async function getNextActions(apiKey, task) {
+  const raw = await callClaude(apiKey,
+    `タスク「${task.title}」（${task.category}）の具体的な次のアクションを3〜5個提案してください。\n` +
+    `元のメモ: "${task.originalText}"\nJSON配列のみ：["アクション1","アクション2","アクション3"]`, 512)
+  const m = raw.match(/\[[\s\S]*?\]/)
+  if (!m) throw new Error('提案の取得に失敗しました')
+  return JSON.parse(m[0])
+}
+
+async function queryTasks(apiKey, query, tasks) {
+  const summary = tasks.length === 0
+    ? 'タスクはありません'
+    : tasks.map(t =>
+        `[${t.category}] ${t.title}（${t.status === 'done' ? '完了' : '未完了'}）: ${t.originalText}`
+      ).join('\n')
+  return callClaude(apiKey,
+    `タスクリスト:\n${summary}\n\n質問: ${query}\n\n日本語で具体的・簡潔に答えてください。`, 1024)
+}
+
+// ─── Storage ──────────────────────────────────────────────────────
+const KEY = 'brain-dump-v1'
+const load = () => {
+  try { return JSON.parse(localStorage.getItem(KEY) || 'null') || {tasks:[],categories:[],apiKey:''} }
+  catch { return {tasks:[],categories:[],apiKey:''} }
+}
+
+// ─── Colors ───────────────────────────────────────────────────────
+const COLORS = ['#e74c3c','#e67e22','#f1c40f','#2ecc71','#1abc9c',
+                '#3498db','#9b59b6','#e91e63','#00bcd4','#8bc34a']
+const catColor = (cat, cats) => COLORS[cats.indexOf(cat) % COLORS.length]
+
+// ─── App ──────────────────────────────────────────────────────────
+function App() {
+  const [data, setData] = useState(load)
+  const [input, setInput] = useState('')
+  const [query, setQuery] = useState('')
+  const [queryResult, setQueryResult] = useState('')
+  const [selectedCat, setSelectedCat] = useState(null)
+  const [adding, setAdding] = useState(false)
+  const [querying, setQuerying] = useState(false)
+  const [loadingActions, setLoadingActions] = useState(null)
+  const [apiKeyInput, setApiKeyInput] = useState('')
+  const [showSettings, setShowSettings] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    const d = load()
+    if (!d.apiKey) setShowSettings(true)
+    else setApiKeyInput(d.apiKey)
+  }, [])
+
+  const persist = useCallback(next => {
+    setData(next)
+    localStorage.setItem(KEY, JSON.stringify(next))
+  }, [])
+
+  const saveApiKey = () => {
+    const key = apiKeyInput.trim()
+    if (!key) return
+    persist({ ...data, apiKey: key })
+    setShowSettings(false)
+    setError('')
+  }
+
+  const handleAdd = async () => {
+    if (!input.trim() || adding) return
+    if (!data.apiKey) { setShowSettings(true); return }
+    setAdding(true); setError('')
+    try {
+      const { title, category } = await categorizeTask(data.apiKey, input.trim(), data.categories)
+      const task = {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        originalText: input.trim(), title, category,
+        nextActions: [], createdAt: new Date().toISOString(), status: 'active',
+      }
+      const cats = data.categories.includes(category)
+        ? data.categories : [...data.categories, category]
+      persist({ ...data, tasks: [task, ...data.tasks], categories: cats })
+      setInput('')
+    } catch (e) {
+      setError(e.message || 'エラーが発生しました')
+    } finally { setAdding(false) }
+  }
+
+  const handleQuery = async () => {
+    if (!query.trim() || querying) return
+    setQuerying(true); setQueryResult(''); setError('')
+    try {
+      setQueryResult(await queryTasks(data.apiKey, query.trim(), data.tasks))
+    } catch (e) { setError(e.message || 'エラーが発生しました') }
+    finally { setQuerying(false) }
+  }
+
+  const handleSuggest = async (taskId) => {
+    const task = data.tasks.find(t => t.id === taskId)
+    if (!task) return
+    setLoadingActions(taskId); setError('')
+    try {
+      const nextActions = await getNextActions(data.apiKey, task)
+      persist({ ...data, tasks: data.tasks.map(t => t.id === taskId ? {...t, nextActions} : t) })
+    } catch (e) { setError(e.message || 'エラーが発生しました') }
+    finally { setLoadingActions(null) }
+  }
+
+  const toggleDone = id => persist({
+    ...data,
+    tasks: data.tasks.map(t => t.id === id ? {...t, status: t.status === 'done' ? 'active' : 'done'} : t)
+  })
+
+  const deleteTask = id => persist({ ...data, tasks: data.tasks.filter(t => t.id !== id) })
+
+  const clearAll = () => {
+    if (!confirm('すべてのタスクを削除しますか？')) return
+    persist({ ...data, tasks: [], categories: [] }); setSelectedCat(null)
+  }
+
+  const filtered = selectedCat ? data.tasks.filter(t => t.category === selectedCat) : data.tasks
+  const active = data.tasks.filter(t => t.status === 'active').length
+  const done = data.tasks.filter(t => t.status === 'done').length
+
+  return h(Fragment, null,
+    h('div', { class: 'app' },
+
+      // ── Header
+      h('header', { class: 'header' },
+        h('div', { class: 'header-left' },
+          h('h1', null, '🧠 ブレインダンプ'),
+          data.tasks.length > 0 && h('span', { class: 'stats' }, `${active}件進行中 · ${done}件完了`)
+        ),
+        h('div', { class: 'header-right' },
+          data.tasks.length > 0 && h('button', { class: 'btn-ghost danger', onClick: clearAll }, '全削除'),
+          h('button', { class: 'btn-ghost', onClick: () => setShowSettings(s => !s) }, '⚙️ 設定')
+        )
+      ),
+
+      // ── Settings
+      showSettings && h('div', { class: 'settings-panel' },
+        h('h3', null, '🔑 Anthropic APIキー'),
+        h('div', { class: 'row' },
+          h('input', {
+            type: 'password', class: 'input mono', value: apiKeyInput,
+            placeholder: 'sk-ant-api03-...',
+            onInput: e => setApiKeyInput(e.target.value),
+            onKeyDown: e => e.key === 'Enter' && saveApiKey(),
+            autofocus: true,
+          }),
+          h('button', { class: 'btn-primary', onClick: saveApiKey }, '保存')
+        ),
+        h('p', { class: 'hint' }, 'APIキーはこのブラウザのローカルストレージにのみ保存されます。'),
+        data.apiKey && h('button', { class: 'btn-ghost', style: 'margin-top:8px',
+          onClick: () => setShowSettings(false) }, 'キャンセル')
+      ),
+
+      // ── Input
+      h('div', { class: 'input-card' },
+        h('textarea', {
+          class: 'main-textarea', value: input, disabled: adding,
+          placeholder: '頭の中にあることを何でも入力してください...\n（Ctrl+Enterで追加）',
+          onInput: e => setInput(e.target.value),
+          onKeyDown: e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) handleAdd() },
+        }),
+        h('div', { class: 'input-footer' },
+          h('span', { class: 'hint' }, 'AIが自動でカテゴリ分類します'),
+          h('button', { class: 'btn-primary', onClick: handleAdd, disabled: adding || !input.trim() },
+            adding ? h(Fragment, null, h('span', { class: 'spin' }), ' 分類中...') : '追加 ⌘↵'
+          )
+        )
+      ),
+
+      // ── Error
+      error && h('div', { class: 'error-banner' }, '⚠️ ', error),
+
+      // ── Query
+      h('div', { class: 'query-bar' },
+        h('span', { class: 'query-icon' }, '🔍'),
+        h('input', {
+          class: 'query-input', value: query,
+          placeholder: '「ライフ・セルフケアリストは？」など自然言語で質問...',
+          onInput: e => setQuery(e.target.value),
+          onKeyDown: e => e.key === 'Enter' && handleQuery(),
+        }),
+        h('button', { class: 'btn-secondary', onClick: handleQuery,
+          disabled: querying || !query.trim() },
+          querying ? '...' : '質問'
+        )
+      ),
+
+      // ── Query result
+      queryResult && h('div', { class: 'query-result' },
+        h('div', { class: 'qr-header' },
+          h('strong', null, '💬 AIの回答'),
+          h('button', { class: 'close-btn', onClick: () => setQueryResult('') }, '✕')
+        ),
+        h('div', { class: 'qr-body' },
+          queryResult.split('\n').map((line, i) => h('p', { key: i }, line))
+        )
+      ),
+
+      // ── Category filter
+      data.categories.length > 0 && h('div', { class: 'filter-bar' },
+        h('button', {
+          class: `chip ${selectedCat === null ? 'chip-active' : ''}`,
+          onClick: () => setSelectedCat(null),
+        }, 'すべて ', h('span', { class: 'count' }, data.tasks.length)),
+        data.categories.map(cat => {
+          const cnt = data.tasks.filter(t => t.category === cat).length
+          const color = catColor(cat, data.categories)
+          const active = selectedCat === cat
+          return h('button', {
+            key: cat,
+            class: `chip ${active ? 'chip-active' : ''}`,
+            style: active
+              ? `background:${color};border-color:${color};color:#fff`
+              : `--chip-color:${color}`,
+            onClick: () => setSelectedCat(selectedCat === cat ? null : cat),
+          }, cat, ' ', h('span', { class: 'count' }, cnt))
+        })
+      ),
+
+      // ── Task list
+      h('div', { class: 'task-list' },
+        filtered.length === 0 && h('div', { class: 'empty-state' },
+          data.tasks.length === 0
+            ? h(Fragment, null,
+                '✨ 頭の中にあることを入力して始めましょう',
+                h('br'), h('small', null, 'AIが自動でカテゴリ分類してタスク化します')
+              )
+            : 'このカテゴリにタスクはありません'
+        ),
+        filtered.map(task => {
+          const color = catColor(task.category, data.categories)
+          return h('div', {
+            key: task.id,
+            class: `task-card ${task.status === 'done' ? 'task-done' : ''}`,
+          },
+            h('div', { class: 'task-top' },
+              h('div', { class: 'task-labels' },
+                h('span', { class: 'tag',
+                  style: `background:${color}22;color:${color};border-color:${color}55` },
+                  task.category),
+                h('span', { class: 'task-date' },
+                  new Date(task.createdAt).toLocaleDateString('ja-JP', {month:'numeric',day:'numeric'}))
+              ),
+              h('div', { class: 'task-btns' },
+                h('button', {
+                  class: `icon-btn ${task.status === 'done' ? 'icon-done' : ''}`,
+                  onClick: () => toggleDone(task.id),
+                  title: task.status === 'done' ? '未完了に戻す' : '完了',
+                }, task.status === 'done' ? '↩' : '✓'),
+                h('button', {
+                  class: 'icon-btn icon-del', title: '削除',
+                  onClick: () => deleteTask(task.id),
+                }, '×')
+              )
+            ),
+            h('h3', { class: 'task-title' }, task.title),
+            h('p', { class: 'task-original' }, task.originalText),
+            task.nextActions.length > 0 && h('div', { class: 'actions-box',
+              style: `border-left-color:${color}` },
+              h('p', { class: 'actions-label', style: `color:${color}` }, '📋 次のアクション'),
+              h('ol', { class: 'actions-list' },
+                task.nextActions.map((a, i) => h('li', { key: i }, a))
+              )
+            ),
+            task.status !== 'done' && h('button', {
+              class: 'suggest-btn', disabled: loadingActions === task.id,
+              onClick: () => handleSuggest(task.id),
+            },
+              loadingActions === task.id
+                ? h(Fragment, null, h('span', { class: 'spin' }), ' 考え中...')
+                : '🔮 次のアクションを提案'
+            )
+          )
+        })
+      )
+    )
+  )
+}
+
+render(h(App, null), document.getElementById('app'))
+</script>
+</body>
+</html>
