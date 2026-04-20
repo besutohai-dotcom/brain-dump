@@ -3,7 +3,6 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <!-- iPhone "Add to Home Screen" PWA tags -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="ブレインダンプ">
@@ -45,7 +44,9 @@
     /* Settings */
     .settings-panel{background:var(--surface);border:1px solid var(--border);
       border-radius:var(--radius);padding:20px;margin-bottom:16px;box-shadow:var(--shadow)}
-    .settings-panel h3{font-size:.95rem;margin-bottom:12px}
+    .settings-panel h3{font-size:.95rem;margin-bottom:8px}
+    .settings-intro{font-size:.85rem;color:var(--muted);line-height:1.6;margin-bottom:12px}
+    .settings-intro a{color:var(--primary)}
     .row{display:flex;gap:8px;margin-bottom:8px}
     .input{flex:1;padding:10px 12px;border:1px solid var(--border);border-radius:8px;
       font-size:.9rem;font-family:inherit;outline:none;transition:border-color .15s}
@@ -55,7 +56,8 @@
     /* Input card */
     .input-card{background:var(--surface);border:1px solid var(--border);
       border-radius:var(--radius);padding:16px;margin-bottom:14px;box-shadow:var(--shadow)}
-    .main-textarea{width:100%;min-height:96px;padding:10px 12px;
+    .textarea-wrap{position:relative}
+    .main-textarea{width:100%;min-height:96px;padding:10px 44px 10px 12px;
       border:1px solid var(--border);border-radius:10px;font-size:.95rem;
       font-family:inherit;line-height:1.65;resize:vertical;outline:none;
       transition:border-color .15s}
@@ -74,6 +76,20 @@
       transition:all .15s;white-space:nowrap}
     .btn-secondary:hover:not(:disabled){background:var(--primary);color:#fff}
     .btn-secondary:disabled{opacity:.5;cursor:not-allowed}
+    /* Mic button */
+    .mic-btn{position:absolute;right:8px;bottom:8px;width:30px;height:30px;
+      border-radius:50%;border:none;background:none;cursor:pointer;
+      font-size:1.1rem;display:flex;align-items:center;justify-content:center;
+      color:var(--muted);transition:all .15s;flex-shrink:0}
+    .mic-btn:hover{background:var(--bg)}
+    .mic-btn.recording{color:var(--danger);animation:pulse 1s ease-in-out infinite}
+    .mic-btn-inline{width:32px;height:32px;border-radius:50%;border:none;background:none;
+      cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;
+      color:var(--muted);transition:all .15s;flex-shrink:0}
+    .mic-btn-inline:hover{background:var(--bg)}
+    .mic-btn-inline.recording{color:var(--danger);animation:pulse 1s ease-in-out infinite}
+    @keyframes pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.2);opacity:.7}}
+    .voice-status{font-size:.75rem;color:var(--danger);margin-top:4px;min-height:1em}
     /* Spinner */
     .spin{display:inline-block;width:12px;height:12px;border:2px solid currentColor;
       border-top-color:transparent;border-radius:50%;
@@ -83,8 +99,8 @@
     .error-banner{background:#fff5f5;border:1px solid #ffd5d5;color:var(--danger);
       border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:.88rem}
     /* Query bar */
-    .query-bar{display:flex;align-items:center;gap:8px;background:var(--surface);
-      border:1px solid var(--border);border-radius:10px;padding:6px 10px 6px 14px;
+    .query-bar{display:flex;align-items:center;gap:6px;background:var(--surface);
+      border:1px solid var(--border);border-radius:10px;padding:6px 8px 6px 14px;
       margin-bottom:12px;box-shadow:var(--shadow)}
     .query-icon{font-size:1rem;flex-shrink:0}
     .query-input{flex:1;border:none;outline:none;font-size:.88rem;
@@ -111,7 +127,7 @@
     /* Task list */
     .task-list{display:flex;flex-direction:column;gap:10px}
     .empty-state{text-align:center;padding:60px 20px;color:var(--muted);
-      font-size:1rem;line-height:2}
+      font-size:1rem;line-height:2.2}
     .empty-state small{font-size:.85rem}
     /* Task card */
     .task-card{background:var(--surface);border:1px solid var(--border);
@@ -148,6 +164,8 @@
       justify-content:center;gap:6px}
     .suggest-btn:hover:not(:disabled){border-color:var(--primary);color:var(--primary);background:#f3f4ff}
     .suggest-btn:disabled{cursor:not-allowed}
+    /* No speech support banner */
+    .no-voice{font-size:.75rem;color:var(--muted);margin-top:4px}
     @media(max-width:500px){
       .app{padding:16px 12px 60px}
       .header h1{font-size:1.2rem}
@@ -160,6 +178,42 @@
 <script type="module">
 import { h, render, Fragment } from 'https://esm.sh/preact@10.24.3'
 import { useState, useEffect, useCallback, useRef } from 'https://esm.sh/preact@10.24.3/hooks'
+
+// ─── Speech Recognition hook ──────────────────────────────────────
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition
+function useSpeech(onResult) {
+  const [listening, setListening] = useState(false)
+  const recRef = useRef(null)
+
+  const start = useCallback(() => {
+    if (!SR) return
+    const rec = new SR()
+    rec.lang = 'ja-JP'
+    rec.interimResults = false
+    rec.maxAlternatives = 1
+    rec.onresult = e => {
+      const text = e.results[0][0].transcript
+      onResult(text)
+    }
+    rec.onend = () => setListening(false)
+    rec.onerror = () => setListening(false)
+    rec.start()
+    recRef.current = rec
+    setListening(true)
+  }, [onResult])
+
+  const stop = useCallback(() => {
+    recRef.current?.stop()
+    setListening(false)
+  }, [])
+
+  const toggle = useCallback(() => {
+    if (listening) stop()
+    else start()
+  }, [listening, start, stop])
+
+  return { listening, toggle, supported: !!SR }
+}
 
 // ─── Claude API ───────────────────────────────────────────────────
 async function callClaude(apiKey, prompt, maxTokens = 512) {
@@ -242,11 +296,35 @@ function App() {
   const [showSettings, setShowSettings] = useState(false)
   const [error, setError] = useState('')
 
+  // Voice for main input — appends transcript to textarea
+  const inputSpeech = useSpeech(text => setInput(prev => prev ? prev + ' ' + text : text))
+  // Voice for query bar — replaces query text
+  const querySpeech = useSpeech(text => {
+    setQuery(text)
+    // Auto-submit after voice query
+    setTimeout(() => {
+      const queryEl = document.getElementById('query-input')
+      if (queryEl) queryEl.dispatchEvent(new CustomEvent('voicesubmit', { detail: text }))
+    }, 100)
+  })
+
   useEffect(() => {
     const d = load()
     if (!d.apiKey) setShowSettings(true)
     else setApiKeyInput(d.apiKey)
   }, [])
+
+  // Handle auto-submit from voice query
+  useEffect(() => {
+    const el = document.getElementById('query-input')
+    if (!el) return
+    const handler = (e) => {
+      const q = e.detail
+      if (q && data.apiKey) handleQueryText(q)
+    }
+    el.addEventListener('voicesubmit', handler)
+    return () => el.removeEventListener('voicesubmit', handler)
+  }, [data])
 
   const persist = useCallback(next => {
     setData(next)
@@ -281,14 +359,16 @@ function App() {
     } finally { setAdding(false) }
   }
 
-  const handleQuery = async () => {
-    if (!query.trim() || querying) return
+  const handleQueryText = async (q) => {
+    if (!q.trim() || querying) return
     setQuerying(true); setQueryResult(''); setError('')
     try {
-      setQueryResult(await queryTasks(data.apiKey, query.trim(), data.tasks))
+      setQueryResult(await queryTasks(data.apiKey, q.trim(), data.tasks))
     } catch (e) { setError(e.message || 'エラーが発生しました') }
     finally { setQuerying(false) }
   }
+
+  const handleQuery = () => handleQueryText(query)
 
   const handleSuggest = async (taskId) => {
     const task = data.tasks.find(t => t.id === taskId)
@@ -314,8 +394,8 @@ function App() {
   }
 
   const filtered = selectedCat ? data.tasks.filter(t => t.category === selectedCat) : data.tasks
-  const active = data.tasks.filter(t => t.status === 'active').length
-  const done = data.tasks.filter(t => t.status === 'done').length
+  const activeCount = data.tasks.filter(t => t.status === 'active').length
+  const doneCount = data.tasks.filter(t => t.status === 'done').length
 
   return h(Fragment, null,
     h('div', { class: 'app' },
@@ -324,7 +404,7 @@ function App() {
       h('header', { class: 'header' },
         h('div', { class: 'header-left' },
           h('h1', null, '🧠 ブレインダンプ'),
-          data.tasks.length > 0 && h('span', { class: 'stats' }, `${active}件進行中 · ${done}件完了`)
+          data.tasks.length > 0 && h('span', { class: 'stats' }, `${activeCount}件進行中 · ${doneCount}件完了`)
         ),
         h('div', { class: 'header-right' },
           data.tasks.length > 0 && h('button', { class: 'btn-ghost danger', onClick: clearAll }, '全削除'),
@@ -335,6 +415,12 @@ function App() {
       // ── Settings
       showSettings && h('div', { class: 'settings-panel' },
         h('h3', null, '🔑 Anthropic APIキー'),
+        h('p', { class: 'settings-intro' },
+          'APIキーは ',
+          h('a', { href: 'https://console.anthropic.com/settings/keys', target: '_blank' },
+            'console.anthropic.com'),
+          ' で取得できます。取得したキー（sk-ant-...）を以下に貼り付けて保存してください。'
+        ),
         h('div', { class: 'row' },
           h('input', {
             type: 'password', class: 'input mono', value: apiKeyInput,
@@ -345,21 +431,31 @@ function App() {
           }),
           h('button', { class: 'btn-primary', onClick: saveApiKey }, '保存')
         ),
-        h('p', { class: 'hint' }, 'APIキーはこのブラウザのローカルストレージにのみ保存されます。'),
+        h('p', { class: 'hint' }, '🔒 キーはこのデバイスのみに保存されます。外部に送信されません。'),
         data.apiKey && h('button', { class: 'btn-ghost', style: 'margin-top:8px',
           onClick: () => setShowSettings(false) }, 'キャンセル')
       ),
 
-      // ── Input
+      // ── Input card
       h('div', { class: 'input-card' },
-        h('textarea', {
-          class: 'main-textarea', value: input, disabled: adding,
-          placeholder: '頭の中にあることを何でも入力してください...\n（Ctrl+Enterで追加）',
-          onInput: e => setInput(e.target.value),
-          onKeyDown: e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) handleAdd() },
-        }),
+        h('div', { class: 'textarea-wrap' },
+          h('textarea', {
+            class: 'main-textarea', value: input, disabled: adding,
+            placeholder: '頭の中にあることを何でも入力...\n（マイクボタンで音声入力も可能）',
+            onInput: e => setInput(e.target.value),
+            onKeyDown: e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) handleAdd() },
+          }),
+          inputSpeech.supported && h('button', {
+            class: `mic-btn ${inputSpeech.listening ? 'recording' : ''}`,
+            onClick: inputSpeech.toggle,
+            title: inputSpeech.listening ? '録音停止' : '音声入力',
+          }, inputSpeech.listening ? '🔴' : '🎤')
+        ),
+        inputSpeech.listening && h('p', { class: 'voice-status' }, '🎤 聞いています...'),
         h('div', { class: 'input-footer' },
-          h('span', { class: 'hint' }, 'AIが自動でカテゴリ分類します'),
+          !inputSpeech.supported
+            ? h('span', { class: 'no-voice' }, '※ このブラウザは音声入力非対応')
+            : h('span', { class: 'hint' }, 'AIが自動でカテゴリ分類します'),
           h('button', { class: 'btn-primary', onClick: handleAdd, disabled: adding || !input.trim() },
             adding ? h(Fragment, null, h('span', { class: 'spin' }), ' 分類中...') : '追加 ⌘↵'
           )
@@ -369,15 +465,21 @@ function App() {
       // ── Error
       error && h('div', { class: 'error-banner' }, '⚠️ ', error),
 
-      // ── Query
+      // ── Query bar
       h('div', { class: 'query-bar' },
         h('span', { class: 'query-icon' }, '🔍'),
         h('input', {
+          id: 'query-input',
           class: 'query-input', value: query,
-          placeholder: '「ライフ・セルフケアリストは？」など自然言語で質問...',
+          placeholder: '「仕事のタスクは？」など自然言語で質問...',
           onInput: e => setQuery(e.target.value),
           onKeyDown: e => e.key === 'Enter' && handleQuery(),
         }),
+        querySpeech.supported && h('button', {
+          class: `mic-btn-inline ${querySpeech.listening ? 'recording' : ''}`,
+          onClick: querySpeech.toggle,
+          title: querySpeech.listening ? '録音停止' : '音声で質問',
+        }, querySpeech.listening ? '🔴' : '🎤'),
         h('button', { class: 'btn-secondary', onClick: handleQuery,
           disabled: querying || !query.trim() },
           querying ? '...' : '質問'
@@ -404,11 +506,11 @@ function App() {
         data.categories.map(cat => {
           const cnt = data.tasks.filter(t => t.category === cat).length
           const color = catColor(cat, data.categories)
-          const active = selectedCat === cat
+          const isActive = selectedCat === cat
           return h('button', {
             key: cat,
-            class: `chip ${active ? 'chip-active' : ''}`,
-            style: active
+            class: `chip ${isActive ? 'chip-active' : ''}`,
+            style: isActive
               ? `background:${color};border-color:${color};color:#fff`
               : `--chip-color:${color}`,
             onClick: () => setSelectedCat(selectedCat === cat ? null : cat),
@@ -422,7 +524,10 @@ function App() {
           data.tasks.length === 0
             ? h(Fragment, null,
                 '✨ 頭の中にあることを入力して始めましょう',
-                h('br'), h('small', null, 'AIが自動でカテゴリ分類してタスク化します')
+                h('br'),
+                h('small', null, 'テキスト入力または🎤マイクボタンで音声入力できます'),
+                h('br'),
+                h('small', null, 'AIが自動でカテゴリ分類してタスク化します')
               )
             : 'このカテゴリにタスクはありません'
         ),
