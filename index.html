@@ -202,6 +202,11 @@
     .suggest-btn:hover:not(:disabled){border-color:var(--primary);color:var(--primary);background:#f3f4ff}
     .suggest-btn:disabled{cursor:not-allowed}
     .no-voice{font-size:.75rem;color:var(--muted);margin-top:4px}
+    /* Priority badge */
+    .priority-badge{font-size:.72rem;font-weight:700;padding:2px 8px;border-radius:10px;
+      border:1px solid;cursor:pointer;transition:opacity .15s;letter-spacing:.02em;
+      background:none;font-family:inherit;line-height:1.4}
+    .priority-badge:hover{opacity:.65}
     @media(max-width:500px){
       .app{padding:16px 12px 60px}
       .header h1{font-size:1.2rem}
@@ -294,6 +299,14 @@ const load = () => {
 const COLORS = ['#e74c3c','#e67e22','#f1c40f','#2ecc71','#1abc9c','#3498db','#9b59b6','#e91e63','#00bcd4','#8bc34a']
 const catColor = (cat, cats) => COLORS[cats.indexOf(cat) % COLORS.length]
 
+const PRIORITY = {
+  high:   { label: '高', color: '#ff3b30' },
+  medium: { label: '中', color: '#ff9500' },
+  low:    { label: '低', color: '#8e8e93' },
+}
+const PRIORITY_ORDER = { high: 0, medium: 1, low: 2 }
+const cyclePriority = p => p === 'high' ? 'medium' : p === 'medium' ? 'low' : 'high'
+
 // ─── App ──────────────────────────────────────────────────────────
 function App() {
   const [data, setData] = useState(load)
@@ -360,7 +373,7 @@ function App() {
       const task = {
         id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
         originalText: input.trim(), title, category,
-        nextActions: [], createdAt: new Date().toISOString(), status: 'active',
+        nextActions: [], createdAt: new Date().toISOString(), status: 'active', priority: 'medium',
       }
       const cats = data.categories.includes(category) ? data.categories : [...data.categories, category]
       persist({ ...data, tasks: [task, ...data.tasks], categories: cats })
@@ -424,12 +437,21 @@ function App() {
 
   const cancelEdit = () => setEditingId(null)
 
+  const togglePriority = id => persist({
+    ...data,
+    tasks: data.tasks.map(t => t.id === id ? {...t, priority: cyclePriority(t.priority || 'medium')} : t)
+  })
+
   const clearAll = () => {
     if (!confirm('すべてのタスクを削除しますか？')) return
     persist({ ...data, tasks: [], categories: [] }); setSelectedCat(null)
   }
 
-  const filtered = selectedCat ? data.tasks.filter(t => t.category === selectedCat) : data.tasks
+  const rawFiltered = selectedCat ? data.tasks.filter(t => t.category === selectedCat) : data.tasks
+  const filtered = [...rawFiltered].sort((a, b) => {
+    if (a.status !== b.status) return a.status === 'done' ? 1 : -1
+    return (PRIORITY_ORDER[a.priority || 'medium']) - (PRIORITY_ORDER[b.priority || 'medium'])
+  })
   const activeCount = data.tasks.filter(t => t.status === 'active').length
   const doneCount = data.tasks.filter(t => t.status === 'done').length
 
@@ -555,6 +577,7 @@ function App() {
             h('div', { class: 'task-top' },
               h('div', { class: 'task-labels' },
                 h('span', { class: 'tag', style: `background:${color}22;color:${color};border-color:${color}55` }, task.category),
+                (() => { const p = PRIORITY[task.priority || 'medium']; return h('button', { class: 'priority-badge', style: `color:${p.color};border-color:${p.color}55;background:${p.color}18`, onClick: () => togglePriority(task.id), title: '優先度を変更' }, p.label) })(),
                 h('span', { class: 'task-date' }, new Date(task.createdAt).toLocaleDateString('ja-JP', {month:'numeric',day:'numeric'}))
               ),
               h('div', { class: 'task-btns' },
