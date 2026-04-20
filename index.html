@@ -17,6 +17,13 @@
       --danger:#ff3b30;--success:#34c759;
       --radius:14px;--shadow:0 2px 12px rgba(0,0,0,.07);
     }
+    @media(prefers-color-scheme:dark){
+      :root{
+        --bg:#1c1c1e;--surface:#2c2c2e;--border:#3a3a3c;
+        --text:#f5f5f7;--muted:#8e8e93;
+        --shadow:0 2px 12px rgba(0,0,0,.3);
+      }
+    }
     body{
       font-family:-apple-system,'Hiragino Sans','Hiragino Kaku Gothic ProN',
         'Noto Sans JP','Yu Gothic',sans-serif;
@@ -49,7 +56,8 @@
     .settings-intro a{color:var(--primary)}
     .row{display:flex;gap:8px;margin-bottom:8px}
     .input{flex:1;padding:10px 12px;border:1px solid var(--border);border-radius:8px;
-      font-size:.9rem;font-family:inherit;outline:none;transition:border-color .15s}
+      font-size:.9rem;font-family:inherit;outline:none;transition:border-color .15s;
+      background:var(--surface);color:var(--text)}
     .input:focus{border-color:var(--primary)}
     .input.mono{font-family:'SF Mono',Menlo,monospace;font-size:.85rem}
     .hint{font-size:.78rem;color:var(--muted);line-height:1.5}
@@ -60,7 +68,7 @@
     .main-textarea{width:100%;min-height:96px;padding:10px 44px 10px 12px;
       border:1px solid var(--border);border-radius:10px;font-size:.95rem;
       font-family:inherit;line-height:1.65;resize:vertical;outline:none;
-      transition:border-color .15s}
+      transition:border-color .15s;background:var(--surface);color:var(--text)}
     .main-textarea:focus{border-color:var(--primary)}
     .main-textarea:disabled{opacity:.6}
     .input-footer{display:flex;justify-content:space-between;align-items:center;margin-top:10px}
@@ -81,12 +89,12 @@
       border-radius:50%;border:none;background:none;cursor:pointer;
       font-size:1.1rem;display:flex;align-items:center;justify-content:center;
       color:var(--muted);transition:all .15s;flex-shrink:0}
-    .mic-btn:hover{background:var(--bg)}
+    .mic-btn:hover{background:var(--border)}
     .mic-btn.recording{color:var(--danger);animation:pulse 1s ease-in-out infinite}
     .mic-btn-inline{width:32px;height:32px;border-radius:50%;border:none;background:none;
       cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;
       color:var(--muted);transition:all .15s;flex-shrink:0}
-    .mic-btn-inline:hover{background:var(--bg)}
+    .mic-btn-inline:hover{background:var(--border)}
     .mic-btn-inline.recording{color:var(--danger);animation:pulse 1s ease-in-out infinite}
     @keyframes pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.2);opacity:.7}}
     .voice-status{font-size:.75rem;color:var(--danger);margin-top:4px;min-height:1em}
@@ -98,6 +106,18 @@
     /* Error */
     .error-banner{background:#fff5f5;border:1px solid #ffd5d5;color:var(--danger);
       border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:.88rem}
+    @media(prefers-color-scheme:dark){
+      .error-banner{background:#3a1a1a;border-color:#7a3a3a}
+    }
+    /* Toast (undo) */
+    .toast{position:fixed;bottom:calc(24px + env(safe-area-inset-bottom));left:50%;
+      transform:translateX(-50%);background:#1d1d1f;color:#fff;border-radius:10px;
+      padding:10px 16px;font-size:.88rem;display:flex;align-items:center;gap:12px;
+      box-shadow:0 4px 20px rgba(0,0,0,.25);z-index:999;
+      animation:slideUp .2s ease}
+    @keyframes slideUp{from{opacity:0;transform:translateX(-50%) translateY(10px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+    .toast-undo{background:none;border:none;color:#a78bfa;font-size:.88rem;
+      font-family:inherit;font-weight:600;cursor:pointer;padding:0}
     /* Query bar */
     .query-bar{display:flex;align-items:center;gap:6px;background:var(--surface);
       border:1px solid var(--border);border-radius:10px;padding:6px 8px 6px 14px;
@@ -109,11 +129,14 @@
     /* Query result */
     .query-result{background:#f3f4ff;border:1px solid #c9cbf5;
       border-radius:var(--radius);padding:16px;margin-bottom:16px}
+    @media(prefers-color-scheme:dark){
+      .query-result{background:#1e1e3a;border-color:#3a3a7a}
+    }
     .qr-header{display:flex;justify-content:space-between;align-items:center;
       margin-bottom:10px;font-size:.88rem}
     .close-btn{background:none;border:none;cursor:pointer;color:var(--muted);
       font-size:1rem;padding:2px 6px;border-radius:4px}
-    .close-btn:hover{background:rgba(0,0,0,.06)}
+    .close-btn:hover{background:rgba(128,128,128,.15)}
     .qr-body p{font-size:.9rem;line-height:1.75;color:var(--text)}
     .qr-body p:empty{display:none}
     /* Filter */
@@ -122,7 +145,7 @@
       border-radius:20px;border:1px solid var(--border);background:var(--surface);
       font-size:.82rem;font-family:inherit;cursor:pointer;color:var(--muted);transition:all .15s}
     .chip-active{font-weight:500}
-    .count{background:rgba(0,0,0,.08);border-radius:10px;padding:0 6px;font-size:.75rem}
+    .count{background:rgba(128,128,128,.15);border-radius:10px;padding:0 6px;font-size:.75rem}
     .chip-active .count{background:rgba(255,255,255,.25)}
     /* Task list */
     .task-list{display:flex;flex-direction:column;gap:10px}
@@ -148,12 +171,26 @@
     .icon-done{color:var(--success);border-color:var(--success)}
     .icon-done:hover{background:#e8faf0}
     .icon-del:hover{background:#fff0ee;color:var(--danger);border-color:var(--danger)}
+    /* Edit mode */
+    .edit-field{width:100%;padding:7px 10px;border:1px solid var(--primary);border-radius:8px;
+      font-family:inherit;font-size:.95rem;font-weight:600;outline:none;
+      background:var(--surface);color:var(--text);margin-bottom:6px}
+    .edit-original{width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:8px;
+      font-family:inherit;font-size:.855rem;outline:none;resize:vertical;min-height:60px;
+      background:var(--surface);color:var(--text);margin-bottom:8px;line-height:1.5}
+    .edit-original:focus{border-color:var(--primary)}
+    .edit-actions{display:flex;gap:6px;margin-bottom:10px}
+    .btn-save{background:var(--primary);color:#fff;border:none;border-radius:7px;
+      padding:6px 14px;font-size:.83rem;font-family:inherit;font-weight:500;cursor:pointer}
+    .btn-cancel{background:none;border:1px solid var(--border);border-radius:7px;
+      padding:6px 12px;font-size:.83rem;font-family:inherit;color:var(--muted);cursor:pointer}
     .task-title{font-size:1rem;font-weight:600;line-height:1.45;
       margin-bottom:5px;letter-spacing:-.01em}
     .task-original{font-size:.855rem;color:var(--muted);line-height:1.65;margin-bottom:12px}
     /* Next actions */
     .actions-box{background:#f9f9ff;border-left:3px solid var(--primary);
       border-radius:0 8px 8px 0;padding:12px 14px;margin-bottom:10px}
+    @media(prefers-color-scheme:dark){.actions-box{background:#1e1e3a}}
     .actions-label{font-size:.8rem;font-weight:600;margin-bottom:8px;color:var(--primary)}
     .actions-list{padding-left:18px;display:flex;flex-direction:column;gap:4px}
     .actions-list li{font-size:.855rem;line-height:1.55;color:var(--text)}
@@ -164,7 +201,6 @@
       justify-content:center;gap:6px}
     .suggest-btn:hover:not(:disabled){border-color:var(--primary);color:var(--primary);background:#f3f4ff}
     .suggest-btn:disabled{cursor:not-allowed}
-    /* No speech support banner */
     .no-voice{font-size:.75rem;color:var(--muted);margin-top:4px}
     @media(max-width:500px){
       .app{padding:16px 12px 60px}
@@ -179,43 +215,25 @@
 import { h, render, Fragment } from 'https://esm.sh/preact@10.24.3'
 import { useState, useEffect, useCallback, useRef } from 'https://esm.sh/preact@10.24.3/hooks'
 
-// ─── Speech Recognition hook ──────────────────────────────────────
+// ─── Speech Recognition ───────────────────────────────────────────
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition
-// iOS blocks mic in PWA standalone mode — detect it
 const IS_PWA = window.navigator.standalone === true
 const VOICE_OK = !!SR && !IS_PWA
 
 function useSpeech(onResult) {
   const [listening, setListening] = useState(false)
   const recRef = useRef(null)
-
   const start = useCallback(() => {
     if (!VOICE_OK) return
     const rec = new SR()
-    rec.lang = 'ja-JP'
-    rec.interimResults = false
-    rec.maxAlternatives = 1
-    rec.onresult = e => {
-      const text = e.results[0][0].transcript
-      onResult(text)
-    }
+    rec.lang = 'ja-JP'; rec.interimResults = false; rec.maxAlternatives = 1
+    rec.onresult = e => onResult(e.results[0][0].transcript)
     rec.onend = () => setListening(false)
-    rec.onerror = (e) => { console.warn('Speech error:', e.error); setListening(false) }
-    rec.start()
-    recRef.current = rec
-    setListening(true)
+    rec.onerror = () => setListening(false)
+    rec.start(); recRef.current = rec; setListening(true)
   }, [onResult])
-
-  const stop = useCallback(() => {
-    recRef.current?.stop()
-    setListening(false)
-  }, [])
-
-  const toggle = useCallback(() => {
-    if (listening) stop()
-    else start()
-  }, [listening, start, stop])
-
+  const stop = useCallback(() => { recRef.current?.stop(); setListening(false) }, [])
+  const toggle = useCallback(() => listening ? stop() : start(), [listening, start, stop])
   return { listening, toggle, supported: VOICE_OK }
 }
 
@@ -239,18 +257,13 @@ async function callClaude(apiKey, prompt, maxTokens = 512) {
     const err = await res.json().catch(() => ({}))
     throw new Error(err?.error?.message || `APIエラー: ${res.status}`)
   }
-  const data = await res.json()
-  return data.content[0]?.text ?? ''
+  return (await res.json()).content[0]?.text ?? ''
 }
 
 async function categorizeTask(apiKey, text, existingCategories) {
-  const catStr = existingCategories.length
-    ? `既存カテゴリ: ${existingCategories.join('、')}`
-    : '既存カテゴリ: なし'
+  const catStr = existingCategories.length ? `既存カテゴリ: ${existingCategories.join('、')}` : '既存カテゴリ: なし'
   const raw = await callClaude(apiKey,
-    `${catStr}\n\n入力テキスト: "${text}"\n\n` +
-    `既存カテゴリに合うものがあればそれを使用。なければ新規作成（仕事/健康/学習/家族/趣味/買い物/自己啓発/人間関係 など）。\n\n` +
-    `JSONのみ返してください：{"title":"簡潔なタイトル","category":"カテゴリ名"}`, 200)
+    `${catStr}\n\n入力テキスト: "${text}"\n\n既存カテゴリに合うものがあればそれを使用。なければ新規作成（仕事/健康/学習/家族/趣味/買い物/自己啓発/人間関係 など）。\n\nJSONのみ返してください：{"title":"簡潔なタイトル","category":"カテゴリ名"}`, 200)
   const m = raw.match(/\{[^{}]*\}/)
   if (!m) throw new Error('分類に失敗しました')
   return JSON.parse(m[0])
@@ -258,21 +271,16 @@ async function categorizeTask(apiKey, text, existingCategories) {
 
 async function getNextActions(apiKey, task) {
   const raw = await callClaude(apiKey,
-    `タスク「${task.title}」（${task.category}）の具体的な次のアクションを3〜5個提案してください。\n` +
-    `元のメモ: "${task.originalText}"\nJSON配列のみ：["アクション1","アクション2","アクション3"]`, 512)
+    `タスク「${task.title}」（${task.category}）の具体的な次のアクションを3〜5個提案してください。\n元のメモ: "${task.originalText}"\nJSON配列のみ：["アクション1","アクション2","アクション3"]`, 512)
   const m = raw.match(/\[[\s\S]*?\]/)
   if (!m) throw new Error('提案の取得に失敗しました')
   return JSON.parse(m[0])
 }
 
 async function queryTasks(apiKey, query, tasks) {
-  const summary = tasks.length === 0
-    ? 'タスクはありません'
-    : tasks.map(t =>
-        `[${t.category}] ${t.title}（${t.status === 'done' ? '完了' : '未完了'}）: ${t.originalText}`
-      ).join('\n')
-  return callClaude(apiKey,
-    `タスクリスト:\n${summary}\n\n質問: ${query}\n\n日本語で具体的・簡潔に答えてください。`, 1024)
+  const summary = tasks.length === 0 ? 'タスクはありません'
+    : tasks.map(t => `[${t.category}] ${t.title}（${t.status === 'done' ? '完了' : '未完了'}）: ${t.originalText}`).join('\n')
+  return callClaude(apiKey, `タスクリスト:\n${summary}\n\n質問: ${query}\n\n日本語で具体的・簡潔に答えてください。`, 1024)
 }
 
 // ─── Storage ──────────────────────────────────────────────────────
@@ -283,8 +291,7 @@ const load = () => {
 }
 
 // ─── Colors ───────────────────────────────────────────────────────
-const COLORS = ['#e74c3c','#e67e22','#f1c40f','#2ecc71','#1abc9c',
-                '#3498db','#9b59b6','#e91e63','#00bcd4','#8bc34a']
+const COLORS = ['#e74c3c','#e67e22','#f1c40f','#2ecc71','#1abc9c','#3498db','#9b59b6','#e91e63','#00bcd4','#8bc34a']
 const catColor = (cat, cats) => COLORS[cats.indexOf(cat) % COLORS.length]
 
 // ─── App ──────────────────────────────────────────────────────────
@@ -300,17 +307,16 @@ function App() {
   const [apiKeyInput, setApiKeyInput] = useState('')
   const [showSettings, setShowSettings] = useState(false)
   const [error, setError] = useState('')
+  const [editingId, setEditingId] = useState(null)
+  const [editTitle, setEditTitle] = useState('')
+  const [editOriginal, setEditOriginal] = useState('')
+  const [toast, setToast] = useState(null) // {message, onUndo}
+  const toastTimer = useRef(null)
 
-  // Voice for main input — appends transcript to textarea
   const inputSpeech = useSpeech(text => setInput(prev => prev ? prev + ' ' + text : text))
-  // Voice for query bar — replaces query text
   const querySpeech = useSpeech(text => {
     setQuery(text)
-    // Auto-submit after voice query
-    setTimeout(() => {
-      const queryEl = document.getElementById('query-input')
-      if (queryEl) queryEl.dispatchEvent(new CustomEvent('voicesubmit', { detail: text }))
-    }, 100)
+    setTimeout(() => document.getElementById('qi')?.dispatchEvent(new CustomEvent('vs', {detail:text})), 100)
   })
 
   useEffect(() => {
@@ -319,17 +325,19 @@ function App() {
     else setApiKeyInput(d.apiKey)
   }, [])
 
-  // Handle auto-submit from voice query
   useEffect(() => {
-    const el = document.getElementById('query-input')
+    const el = document.getElementById('qi')
     if (!el) return
-    const handler = (e) => {
-      const q = e.detail
-      if (q && data.apiKey) handleQueryText(q)
-    }
-    el.addEventListener('voicesubmit', handler)
-    return () => el.removeEventListener('voicesubmit', handler)
+    const h = e => { if (e.detail && data.apiKey) handleQueryText(e.detail) }
+    el.addEventListener('vs', h)
+    return () => el.removeEventListener('vs', h)
   }, [data])
+
+  const showToast = useCallback((message, onUndo) => {
+    clearTimeout(toastTimer.current)
+    setToast({ message, onUndo })
+    toastTimer.current = setTimeout(() => setToast(null), 4000)
+  }, [])
 
   const persist = useCallback(next => {
     setData(next)
@@ -340,8 +348,7 @@ function App() {
     const key = apiKeyInput.trim()
     if (!key) return
     persist({ ...data, apiKey: key })
-    setShowSettings(false)
-    setError('')
+    setShowSettings(false); setError('')
   }
 
   const handleAdd = async () => {
@@ -355,27 +362,24 @@ function App() {
         originalText: input.trim(), title, category,
         nextActions: [], createdAt: new Date().toISOString(), status: 'active',
       }
-      const cats = data.categories.includes(category)
-        ? data.categories : [...data.categories, category]
+      const cats = data.categories.includes(category) ? data.categories : [...data.categories, category]
       persist({ ...data, tasks: [task, ...data.tasks], categories: cats })
       setInput('')
-    } catch (e) {
-      setError(e.message || 'エラーが発生しました')
-    } finally { setAdding(false) }
+    } catch (e) { setError(e.message || 'エラーが発生しました') }
+    finally { setAdding(false) }
   }
 
-  const handleQueryText = async (q) => {
+  const handleQueryText = async q => {
     if (!q.trim() || querying) return
     setQuerying(true); setQueryResult(''); setError('')
-    try {
-      setQueryResult(await queryTasks(data.apiKey, q.trim(), data.tasks))
-    } catch (e) { setError(e.message || 'エラーが発生しました') }
+    try { setQueryResult(await queryTasks(data.apiKey, q.trim(), data.tasks)) }
+    catch (e) { setError(e.message || 'エラーが発生しました') }
     finally { setQuerying(false) }
   }
 
   const handleQuery = () => handleQueryText(query)
 
-  const handleSuggest = async (taskId) => {
+  const handleSuggest = async taskId => {
     const task = data.tasks.find(t => t.id === taskId)
     if (!task) return
     setLoadingActions(taskId); setError('')
@@ -391,7 +395,34 @@ function App() {
     tasks: data.tasks.map(t => t.id === id ? {...t, status: t.status === 'done' ? 'active' : 'done'} : t)
   })
 
-  const deleteTask = id => persist({ ...data, tasks: data.tasks.filter(t => t.id !== id) })
+  const deleteTask = id => {
+    const task = data.tasks.find(t => t.id === id)
+    const next = { ...data, tasks: data.tasks.filter(t => t.id !== id) }
+    persist(next)
+    showToast('タスクを削除しました', () => {
+      persist({ ...next, tasks: [task, ...next.tasks] })
+      setToast(null)
+    })
+  }
+
+  const startEdit = task => {
+    setEditingId(task.id)
+    setEditTitle(task.title)
+    setEditOriginal(task.originalText)
+  }
+
+  const saveEdit = () => {
+    if (!editTitle.trim()) return
+    persist({
+      ...data,
+      tasks: data.tasks.map(t => t.id === editingId
+        ? {...t, title: editTitle.trim(), originalText: editOriginal.trim() || t.originalText}
+        : t)
+    })
+    setEditingId(null)
+  }
+
+  const cancelEdit = () => setEditingId(null)
 
   const clearAll = () => {
     if (!confirm('すべてのタスクを削除しますか？')) return
@@ -405,7 +436,7 @@ function App() {
   return h(Fragment, null,
     h('div', { class: 'app' },
 
-      // ── Header
+      // Header
       h('header', { class: 'header' },
         h('div', { class: 'header-left' },
           h('h1', null, '🧠 ブレインダンプ'),
@@ -417,31 +448,24 @@ function App() {
         )
       ),
 
-      // ── Settings
+      // Settings
       showSettings && h('div', { class: 'settings-panel' },
         h('h3', null, '🔑 Anthropic APIキー'),
         h('p', { class: 'settings-intro' },
-          'APIキーは ',
-          h('a', { href: 'https://console.anthropic.com/settings/keys', target: '_blank' },
-            'console.anthropic.com'),
+          'APIキーは ', h('a', { href: 'https://console.anthropic.com/settings/keys', target: '_blank' }, 'console.anthropic.com'),
           ' で取得できます。取得したキー（sk-ant-...）を以下に貼り付けて保存してください。'
         ),
         h('div', { class: 'row' },
-          h('input', {
-            type: 'password', class: 'input mono', value: apiKeyInput,
-            placeholder: 'sk-ant-api03-...',
-            onInput: e => setApiKeyInput(e.target.value),
-            onKeyDown: e => e.key === 'Enter' && saveApiKey(),
-            autofocus: true,
-          }),
+          h('input', { type: 'password', class: 'input mono', value: apiKeyInput,
+            placeholder: 'sk-ant-api03-...', onInput: e => setApiKeyInput(e.target.value),
+            onKeyDown: e => e.key === 'Enter' && saveApiKey(), autofocus: true }),
           h('button', { class: 'btn-primary', onClick: saveApiKey }, '保存')
         ),
         h('p', { class: 'hint' }, '🔒 キーはこのデバイスのみに保存されます。外部に送信されません。'),
-        data.apiKey && h('button', { class: 'btn-ghost', style: 'margin-top:8px',
-          onClick: () => setShowSettings(false) }, 'キャンセル')
+        data.apiKey && h('button', { class: 'btn-ghost', style: 'margin-top:8px', onClick: () => setShowSettings(false) }, 'キャンセル')
       ),
 
-      // ── Input card
+      // Input card
       h('div', { class: 'input-card' },
         h('div', { class: 'textarea-wrap' },
           h('textarea', {
@@ -453,57 +477,46 @@ function App() {
           inputSpeech.supported && h('button', {
             class: `mic-btn ${inputSpeech.listening ? 'recording' : ''}`,
             onClick: inputSpeech.toggle,
-            title: inputSpeech.listening ? '録音停止' : '音声入力',
           }, inputSpeech.listening ? '🔴' : '🎤')
         ),
         inputSpeech.listening && h('p', { class: 'voice-status' }, '🎤 聞いています...'),
         h('div', { class: 'input-footer' },
           !inputSpeech.supported
-            ? h('span', { class: 'no-voice' },
-                IS_PWA ? '🎤 音声入力はSafariブラウザで開くと使えます' : '※ このブラウザは音声入力非対応')
+            ? h('span', { class: 'no-voice' }, IS_PWA ? '🎤 音声入力はSafariで開くと使えます' : '※ 音声入力非対応')
             : h('span', { class: 'hint' }, 'AIが自動でカテゴリ分類します'),
           h('button', { class: 'btn-primary', onClick: handleAdd, disabled: adding || !input.trim() },
-            adding ? h(Fragment, null, h('span', { class: 'spin' }), ' 分類中...') : '追加 ⌘↵'
-          )
+            adding ? h(Fragment, null, h('span', { class: 'spin' }), ' 分類中...') : '追加 ⌘↵')
         )
       ),
 
-      // ── Error
+      // Error
       error && h('div', { class: 'error-banner' }, '⚠️ ', error),
 
-      // ── Query bar
+      // Query bar
       h('div', { class: 'query-bar' },
         h('span', { class: 'query-icon' }, '🔍'),
-        h('input', {
-          id: 'query-input',
-          class: 'query-input', value: query,
+        h('input', { id: 'qi', class: 'query-input', value: query,
           placeholder: '「仕事のタスクは？」など自然言語で質問...',
           onInput: e => setQuery(e.target.value),
-          onKeyDown: e => e.key === 'Enter' && handleQuery(),
-        }),
+          onKeyDown: e => e.key === 'Enter' && handleQuery() }),
         querySpeech.supported && h('button', {
           class: `mic-btn-inline ${querySpeech.listening ? 'recording' : ''}`,
           onClick: querySpeech.toggle,
-          title: querySpeech.listening ? '録音停止' : '音声で質問',
         }, querySpeech.listening ? '🔴' : '🎤'),
-        h('button', { class: 'btn-secondary', onClick: handleQuery,
-          disabled: querying || !query.trim() },
-          querying ? '...' : '質問'
-        )
+        h('button', { class: 'btn-secondary', onClick: handleQuery, disabled: querying || !query.trim() },
+          querying ? '...' : '質問')
       ),
 
-      // ── Query result
+      // Query result
       queryResult && h('div', { class: 'query-result' },
         h('div', { class: 'qr-header' },
           h('strong', null, '💬 AIの回答'),
           h('button', { class: 'close-btn', onClick: () => setQueryResult('') }, '✕')
         ),
-        h('div', { class: 'qr-body' },
-          queryResult.split('\n').map((line, i) => h('p', { key: i }, line))
-        )
+        h('div', { class: 'qr-body' }, queryResult.split('\n').map((line, i) => h('p', { key: i }, line)))
       ),
 
-      // ── Category filter
+      // Category filter
       data.categories.length > 0 && h('div', { class: 'filter-bar' },
         h('button', {
           class: `chip ${selectedCat === null ? 'chip-active' : ''}`,
@@ -516,73 +529,89 @@ function App() {
           return h('button', {
             key: cat,
             class: `chip ${isActive ? 'chip-active' : ''}`,
-            style: isActive
-              ? `background:${color};border-color:${color};color:#fff`
-              : `--chip-color:${color}`,
+            style: isActive ? `background:${color};border-color:${color};color:#fff` : `--chip-color:${color}`,
             onClick: () => setSelectedCat(selectedCat === cat ? null : cat),
           }, cat, ' ', h('span', { class: 'count' }, cnt))
         })
       ),
 
-      // ── Task list
+      // Task list
       h('div', { class: 'task-list' },
         filtered.length === 0 && h('div', { class: 'empty-state' },
           data.tasks.length === 0
             ? h(Fragment, null,
-                '✨ 頭の中にあることを入力して始めましょう',
-                h('br'),
-                h('small', null, 'テキスト入力または🎤マイクボタンで音声入力できます'),
-                h('br'),
-                h('small', null, 'AIが自動でカテゴリ分類してタスク化します')
-              )
+                '✨ 頭の中にあることを入力して始めましょう', h('br'),
+                h('small', null, 'テキスト入力または🎤マイクボタンで音声入力できます'), h('br'),
+                h('small', null, 'AIが自動でカテゴリ分類してタスク化します'))
             : 'このカテゴリにタスクはありません'
         ),
         filtered.map(task => {
           const color = catColor(task.category, data.categories)
+          const isEditing = editingId === task.id
           return h('div', {
             key: task.id,
             class: `task-card ${task.status === 'done' ? 'task-done' : ''}`,
           },
             h('div', { class: 'task-top' },
               h('div', { class: 'task-labels' },
-                h('span', { class: 'tag',
-                  style: `background:${color}22;color:${color};border-color:${color}55` },
-                  task.category),
-                h('span', { class: 'task-date' },
-                  new Date(task.createdAt).toLocaleDateString('ja-JP', {month:'numeric',day:'numeric'}))
+                h('span', { class: 'tag', style: `background:${color}22;color:${color};border-color:${color}55` }, task.category),
+                h('span', { class: 'task-date' }, new Date(task.createdAt).toLocaleDateString('ja-JP', {month:'numeric',day:'numeric'}))
               ),
               h('div', { class: 'task-btns' },
+                !isEditing && h('button', {
+                  class: 'icon-btn', title: '編集',
+                  onClick: () => startEdit(task),
+                }, '✏️'),
                 h('button', {
                   class: `icon-btn ${task.status === 'done' ? 'icon-done' : ''}`,
                   onClick: () => toggleDone(task.id),
                   title: task.status === 'done' ? '未完了に戻す' : '完了',
                 }, task.status === 'done' ? '↩' : '✓'),
-                h('button', {
-                  class: 'icon-btn icon-del', title: '削除',
-                  onClick: () => deleteTask(task.id),
-                }, '×')
+                h('button', { class: 'icon-btn icon-del', title: '削除', onClick: () => deleteTask(task.id) }, '×')
               )
             ),
-            h('h3', { class: 'task-title' }, task.title),
-            h('p', { class: 'task-original' }, task.originalText),
-            task.nextActions.length > 0 && h('div', { class: 'actions-box',
-              style: `border-left-color:${color}` },
+
+            // Edit mode
+            isEditing
+              ? h(Fragment, null,
+                  h('input', {
+                    class: 'edit-field', value: editTitle, autofocus: true,
+                    onInput: e => setEditTitle(e.target.value),
+                    onKeyDown: e => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') cancelEdit() },
+                    placeholder: 'タイトル',
+                  }),
+                  h('textarea', {
+                    class: 'edit-original', value: editOriginal,
+                    onInput: e => setEditOriginal(e.target.value),
+                    placeholder: '元のメモ（任意）',
+                  }),
+                  h('div', { class: 'edit-actions' },
+                    h('button', { class: 'btn-save', onClick: saveEdit }, '保存'),
+                    h('button', { class: 'btn-cancel', onClick: cancelEdit }, 'キャンセル')
+                  )
+                )
+              : h(Fragment, null,
+                  h('h3', { class: 'task-title' }, task.title),
+                  h('p', { class: 'task-original' }, task.originalText)
+                ),
+
+            task.nextActions.length > 0 && h('div', { class: 'actions-box', style: `border-left-color:${color}` },
               h('p', { class: 'actions-label', style: `color:${color}` }, '📋 次のアクション'),
-              h('ol', { class: 'actions-list' },
-                task.nextActions.map((a, i) => h('li', { key: i }, a))
-              )
+              h('ol', { class: 'actions-list' }, task.nextActions.map((a, i) => h('li', { key: i }, a)))
             ),
-            task.status !== 'done' && h('button', {
+            task.status !== 'done' && !isEditing && h('button', {
               class: 'suggest-btn', disabled: loadingActions === task.id,
               onClick: () => handleSuggest(task.id),
-            },
-              loadingActions === task.id
-                ? h(Fragment, null, h('span', { class: 'spin' }), ' 考え中...')
-                : '🔮 次のアクションを提案'
-            )
+            }, loadingActions === task.id ? h(Fragment, null, h('span', { class: 'spin' }), ' 考え中...') : '🔮 次のアクションを提案')
           )
         })
       )
+    ),
+
+    // Toast
+    toast && h('div', { class: 'toast' },
+      h('span', null, toast.message),
+      h('button', { class: 'toast-undo', onClick: () => { toast.onUndo(); clearTimeout(toastTimer.current) } }, '元に戻す')
     )
   )
 }
