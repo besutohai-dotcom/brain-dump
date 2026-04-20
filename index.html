@@ -181,12 +181,16 @@ import { useState, useEffect, useCallback, useRef } from 'https://esm.sh/preact@
 
 // ─── Speech Recognition hook ──────────────────────────────────────
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition
+// iOS blocks mic in PWA standalone mode — detect it
+const IS_PWA = window.navigator.standalone === true
+const VOICE_OK = !!SR && !IS_PWA
+
 function useSpeech(onResult) {
   const [listening, setListening] = useState(false)
   const recRef = useRef(null)
 
   const start = useCallback(() => {
-    if (!SR) return
+    if (!VOICE_OK) return
     const rec = new SR()
     rec.lang = 'ja-JP'
     rec.interimResults = false
@@ -196,7 +200,7 @@ function useSpeech(onResult) {
       onResult(text)
     }
     rec.onend = () => setListening(false)
-    rec.onerror = () => setListening(false)
+    rec.onerror = (e) => { console.warn('Speech error:', e.error); setListening(false) }
     rec.start()
     recRef.current = rec
     setListening(true)
@@ -212,7 +216,7 @@ function useSpeech(onResult) {
     else start()
   }, [listening, start, stop])
 
-  return { listening, toggle, supported: !!SR }
+  return { listening, toggle, supported: VOICE_OK }
 }
 
 // ─── Claude API ───────────────────────────────────────────────────
@@ -223,6 +227,7 @@ async function callClaude(apiKey, prompt, maxTokens = 512) {
       'Content-Type': 'application/json',
       'x-api-key': apiKey,
       'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
     },
     body: JSON.stringify({
       model: 'claude-haiku-4-5',
@@ -454,7 +459,8 @@ function App() {
         inputSpeech.listening && h('p', { class: 'voice-status' }, '🎤 聞いています...'),
         h('div', { class: 'input-footer' },
           !inputSpeech.supported
-            ? h('span', { class: 'no-voice' }, '※ このブラウザは音声入力非対応')
+            ? h('span', { class: 'no-voice' },
+                IS_PWA ? '🎤 音声入力はSafariブラウザで開くと使えます' : '※ このブラウザは音声入力非対応')
             : h('span', { class: 'hint' }, 'AIが自動でカテゴリ分類します'),
           h('button', { class: 'btn-primary', onClick: handleAdd, disabled: adding || !input.trim() },
             adding ? h(Fragment, null, h('span', { class: 'spin' }), ' 分類中...') : '追加 ⌘↵'
