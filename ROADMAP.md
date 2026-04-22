@@ -53,3 +53,8 @@ Last updated: 2026-04-21
 - 2026-04-21: Initial deploy, voice input, CORS fix
 - 2026-04-21: Task editing (✏️ inline), dark mode (prefers-color-scheme), undo delete (toast)
 - 2026-04-21: Priority levels — 高/中/低 badge on each task, click to cycle, auto-sort by priority
+
+## 2026-04-22 - キーワード検索バー
+- タスク一覧をキーワードでリアルタイム絞り込む検索バーを追加
+- タイトル・元メモ・カテゴリ名を対象に検索
+- 検索結果ゼロ時の空状態メッセージを追加
