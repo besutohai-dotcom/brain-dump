@@ -139,6 +139,17 @@
     .close-btn:hover{background:rgba(128,128,128,.15)}
     .qr-body p{font-size:.9rem;line-height:1.75;color:var(--text)}
     .qr-body p:empty{display:none}
+    /* Search bar */
+    .search-bar{display:flex;align-items:center;gap:6px;background:var(--surface);
+      border:1px solid var(--border);border-radius:10px;padding:6px 10px;
+      margin-bottom:12px;box-shadow:var(--shadow)}
+    .search-icon{font-size:.9rem;flex-shrink:0;color:var(--muted)}
+    .search-input{flex:1;border:none;outline:none;font-size:.88rem;
+      font-family:inherit;background:transparent;color:var(--text)}
+    .search-input::placeholder{color:var(--muted)}
+    .search-clear{background:none;border:none;cursor:pointer;color:var(--muted);
+      font-size:.8rem;padding:2px 5px;border-radius:4px;line-height:1}
+    .search-clear:hover{background:var(--border);color:var(--text)}
     /* Filter */
     .filter-bar{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:18px}
     .chip{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;
@@ -323,6 +334,7 @@ function App() {
   const [editingId, setEditingId] = useState(null)
   const [editTitle, setEditTitle] = useState('')
   const [editOriginal, setEditOriginal] = useState('')
+  const [searchText, setSearchText] = useState('')
   const [toast, setToast] = useState(null) // {message, onUndo}
   const toastTimer = useRef(null)
 
@@ -447,7 +459,13 @@ function App() {
     persist({ ...data, tasks: [], categories: [] }); setSelectedCat(null)
   }
 
-  const rawFiltered = selectedCat ? data.tasks.filter(t => t.category === selectedCat) : data.tasks
+  const search = searchText.trim().toLowerCase()
+  const rawFiltered = data.tasks
+    .filter(t => !selectedCat || t.category === selectedCat)
+    .filter(t => !search ||
+      t.title.toLowerCase().includes(search) ||
+      t.originalText.toLowerCase().includes(search) ||
+      t.category.toLowerCase().includes(search))
   const filtered = [...rawFiltered].sort((a, b) => {
     if (a.status !== b.status) return a.status === 'done' ? 1 : -1
     return (PRIORITY_ORDER[a.priority || 'medium']) - (PRIORITY_ORDER[b.priority || 'medium'])
@@ -538,6 +556,18 @@ function App() {
         h('div', { class: 'qr-body' }, queryResult.split('\n').map((line, i) => h('p', { key: i }, line)))
       ),
 
+      // Search bar
+      data.tasks.length > 0 && h('div', { class: 'search-bar' },
+        h('span', { class: 'search-icon' }, '🔎'),
+        h('input', {
+          class: 'search-input',
+          value: searchText,
+          placeholder: 'キーワードで絞り込み...',
+          onInput: e => setSearchText(e.target.value),
+        }),
+        searchText && h('button', { class: 'search-clear', onClick: () => setSearchText('') }, '✕')
+      ),
+
       // Category filter
       data.categories.length > 0 && h('div', { class: 'filter-bar' },
         h('button', {
@@ -565,7 +595,9 @@ function App() {
                 '✨ 頭の中にあることを入力して始めましょう', h('br'),
                 h('small', null, 'テキスト入力または🎤マイクボタンで音声入力できます'), h('br'),
                 h('small', null, 'AIが自動でカテゴリ分類してタスク化します'))
-            : 'このカテゴリにタスクはありません'
+            : search
+              ? `「${searchText}」に一致するタスクはありません`
+              : 'このカテゴリにタスクはありません'
         ),
         filtered.map(task => {
           const color = catColor(task.category, data.categories)
@@ -643,3 +675,4 @@ render(h(App, null), document.getElementById('app'))
 </script>
 </body>
 </html>
+
