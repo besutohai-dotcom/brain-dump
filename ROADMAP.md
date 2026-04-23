@@ -1,7 +1,7 @@
 # ブレインダンプ — Autonomous Improvement Roadmap
 
 Managed by an autonomous Claude agent. Updated after each improvement cycle.
-Last updated: 2026-04-21
+Last updated: 2026-04-23
 
 ## ✅ Done
 - [x] Core app: brain dump input → AI categorization → task list
@@ -18,10 +18,11 @@ Last updated: 2026-04-21
 - [x] Dark mode — auto-detects iOS/macOS system preference
 - [x] Undo delete — toast with 4-second undo button
 - [x] Priority levels — High/Medium/Low badge, clickable to cycle, tasks sorted by priority
+- [x] Search bar — filter tasks by keyword
+- [x] Due dates — optional date picker per task, color-coded overdue/today/future badges
 
 ## 📋 Planned (priority order)
-- [ ] Search bar — filter tasks by keyword
-- [ ] Due dates — optional date picker per task
+- [ ] Swipe to complete / swipe to delete (mobile gesture)
 - [ ] Swipe to complete / swipe to delete (mobile gesture)
 - [ ] Export data — download tasks as JSON or plain text
 - [ ] Language toggle — Japanese / English switch
@@ -58,3 +59,9 @@ Last updated: 2026-04-21
 - タスク一覧をキーワードでリアルタイム絞り込む検索バーを追加
 - タイトル・元メモ・カテゴリ名を対象に検索
 - 検索結果ゼロ時の空状態メッセージを追加
+
+## 2026-04-23 - 期限設定機能
+- タスクの編集モードに「期限」日付ピッカーを追加
+- 期限バッジをタスクカードに表示（色分け：期限切れ赤・今日オレンジ・将来グレー）
+- 期限なしはバッジ非表示、「× クリア」で期限を削除可能
+- localStorage互換性を維持（dueDate: null でデフォルト）
