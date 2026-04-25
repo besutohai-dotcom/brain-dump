@@ -1,5 +1,5 @@
 # In Progress
-started_at: 2026-04-24T00:00:00Z
-feature: Swipe to complete / swipe to delete (mobile gesture)
-step: 5 - done
-status: done
+started_at: 2026-04-25T00:00:00Z
+feature: Export data (JSON + plain text download)
+step: 3 - deploying index.html to GitHub
+status: in_progress
