@@ -23,8 +23,6 @@ Last updated: 2026-04-23
 
 ## 📋 Planned (priority order)
 - [ ] Swipe to complete / swipe to delete (mobile gesture)
-- [ ] Swipe to complete / swipe to delete (mobile gesture)
-- [ ] Export data — download tasks as JSON or plain text
 - [ ] Language toggle — Japanese / English switch
 - [ ] Better onboarding — guided first-use flow
 - [ ] Task notes — expandable sub-notes field
@@ -67,4 +65,11 @@ Last updated: 2026-04-23
 - localStorage互換性を維持（dueDate: null でデフォルト）
 
 ## 完了した改善
+- [x] Export data — JSON ・テキストでダウンロード — 2026-04-25
 - [x] スワイプでタスク完了 / スワイプで削除（モバイルジェスチャー） — 2026-04-24
+
+## 2026-04-25 - データエクスポート
+- タスクを2形式でダウンロードできる「📤 出力」ボタンをヘッダーに追加
+- JSON：全タスクデータをbrain-dump-YYYY-MM-DD.jsonで保存
+- テキスト：カテゴリ別で読みやすいbrain-dump-YYYY-MM-DD.txtで保存
+- localStorageスキーマ互換性を維持
