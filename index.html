@@ -48,6 +48,15 @@
       color:var(--muted);transition:all .15s}
     .btn-ghost:hover{background:var(--border);color:var(--text)}
     .btn-ghost.danger:hover{background:#fff0ee;color:var(--danger);border-color:var(--danger)}
+    /* Export dropdown */
+    .export-wrap{position:relative}
+    .export-menu{position:absolute;right:0;top:calc(100% + 6px);background:var(--surface);
+      border:1px solid var(--border);border-radius:10px;padding:4px;
+      box-shadow:0 8px 24px rgba(0,0,0,.15);z-index:100;min-width:180px;white-space:nowrap}
+    .export-item{display:block;width:100%;padding:9px 14px;border:none;background:none;
+      font-family:inherit;font-size:.85rem;color:var(--text);text-align:left;
+      cursor:pointer;border-radius:7px;transition:background .12s}
+    .export-item:hover{background:var(--border)}
     /* Settings */
     .settings-panel{background:var(--surface);border:1px solid var(--border);
       border-radius:var(--radius);padding:20px;margin-bottom:16px;box-shadow:var(--shadow)}
@@ -427,6 +436,7 @@ function App() {
   const [editDueDate, setEditDueDate] = useState('')
   const [searchText, setSearchText] = useState('')
   const [toast, setToast] = useState(null) // {message, onUndo}
+  const [showExportMenu, setShowExportMenu] = useState(false)
   const toastTimer = useRef(null)
 
   const inputSpeech = useSpeech(text => setInput(prev => prev ? prev + ' ' + text : text))
@@ -551,6 +561,41 @@ function App() {
     persist({ ...data, tasks: [], categories: [] }); setSelectedCat(null)
   }
 
+  const exportJSON = () => {
+    const blob = new Blob([JSON.stringify(data.tasks, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url; a.download = `brain-dump-${new Date().toISOString().slice(0, 10)}.json`
+    a.click(); URL.revokeObjectURL(url)
+    setShowExportMenu(false)
+  }
+
+  const exportText = () => {
+    const ac = data.tasks.filter(t => t.status === 'active').length
+    const dc = data.tasks.filter(t => t.status === 'done').length
+    const lines = [`ブレインダンプ — ${new Date().toLocaleDateString('ja-JP')}`, `合計: ${data.tasks.length}件（進行中: ${ac}件、完了: ${dc}件）`, '']
+    const groups = {}
+    data.tasks.forEach(t => { (groups[t.category] = groups[t.category] || []).push(t) })
+    Object.entries(groups).forEach(([cat, tasks]) => {
+      lines.push(`## ${cat}`)
+      tasks.forEach(t => {
+        const st = t.status === 'done' ? '[完了]' : '[  ]'
+        const pr = { high:'[高]', medium:'[中]', low:'[低]' }[t.priority || 'medium']
+        const due = t.dueDate ? ` 期限:${t.dueDate}` : ''
+        lines.push(`${st} ${pr} ${t.title}${due}`)
+        if (t.originalText !== t.title) lines.push(`    ${t.originalText}`)
+        t.nextActions.forEach((a, i) => lines.push(`    ${i + 1}. ${a}`))
+      })
+      lines.push('')
+    })
+    const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url; a.download = `brain-dump-${new Date().toISOString().slice(0, 10)}.txt`
+    a.click(); URL.revokeObjectURL(url)
+    setShowExportMenu(false)
+  }
+
   const search = searchText.trim().toLowerCase()
   const rawFiltered = data.tasks
     .filter(t => !selectedCat || t.category === selectedCat)
@@ -576,6 +621,16 @@ function App() {
         ),
         h('div', { class: 'header-right' },
           data.tasks.length > 0 && h('button', { class: 'btn-ghost danger', onClick: clearAll }, '全削除'),
+          data.tasks.length > 0 && h('div', { class: 'export-wrap' },
+            h('button', { class: 'btn-ghost', onClick: () => setShowExportMenu(s => !s) }, '📤 出力'),
+            showExportMenu && h(Fragment, null,
+              h('div', { style: 'position:fixed;inset:0;z-index:99', onClick: () => setShowExportMenu(false) }),
+              h('div', { class: 'export-menu' },
+                h('button', { class: 'export-item', onClick: exportJSON }, '📋 JSON でダウンロード'),
+                h('button', { class: 'export-item', onClick: exportText }, '📄 テキストでダウンロード')
+              )
+            )
+          ),
           h('button', { class: 'btn-ghost', onClick: () => setShowSettings(s => !s) }, '⚙️ 設定')
         )
       ),
