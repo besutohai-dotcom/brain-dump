@@ -1,5 +1,5 @@
 # In Progress
-started_at: 2026-04-25T00:00:00Z
-feature: Export data (JSON + plain text download)
-step: 5 - done
-status: done
+started_at: 2026-04-26T00:00:00Z
+feature: Language toggle — Japanese / English switch
+step: 1 - fetching current index.html
+status: in_progress
