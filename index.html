@@ -48,6 +48,8 @@
       color:var(--muted);transition:all .15s}
     .btn-ghost:hover{background:var(--border);color:var(--text)}
     .btn-ghost.danger:hover{background:#fff0ee;color:var(--danger);border-color:var(--danger)}
+    .btn-ghost.lang-btn{font-weight:600;letter-spacing:.03em;color:var(--primary);border-color:var(--primary);padding:6px 10px}
+    .btn-ghost.lang-btn:hover{background:var(--primary);color:#fff}
     /* Export dropdown */
     .export-wrap{position:relative}
     .export-menu{position:absolute;right:0;top:calc(100% + 6px);background:var(--surface);
@@ -266,18 +268,19 @@ const SR = window.SpeechRecognition || window.webkitSpeechRecognition
 const IS_PWA = window.navigator.standalone === true
 const VOICE_OK = !!SR && !IS_PWA
 
-function useSpeech(onResult) {
+function useSpeech(onResult, lang) {
   const [listening, setListening] = useState(false)
   const recRef = useRef(null)
   const start = useCallback(() => {
     if (!VOICE_OK) return
     const rec = new SR()
-    rec.lang = 'ja-JP'; rec.interimResults = false; rec.maxAlternatives = 1
+    rec.lang = lang === 'en' ? 'en-US' : 'ja-JP'
+    rec.interimResults = false; rec.maxAlternatives = 1
     rec.onresult = e => onResult(e.results[0][0].transcript)
     rec.onend = () => setListening(false)
     rec.onerror = () => setListening(false)
     rec.start(); recRef.current = rec; setListening(true)
-  }, [onResult])
+  }, [onResult, lang])
   const stop = useCallback(() => { recRef.current?.stop(); setListening(false) }, [])
   const toggle = useCallback(() => listening ? stop() : start(), [listening, start, stop])
   return { listening, toggle, supported: VOICE_OK }
@@ -301,12 +304,20 @@ async function callClaude(apiKey, prompt, maxTokens = 512) {
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
-    throw new Error(err?.error?.message || `APIエラー: ${res.status}`)
+    throw new Error(err?.error?.message || `API error: ${res.status}`)
   }
   return (await res.json()).content[0]?.text ?? ''
 }
 
-async function categorizeTask(apiKey, text, existingCategories) {
+async function categorizeTask(apiKey, text, existingCategories, lang) {
+  if (lang === 'en') {
+    const catStr = existingCategories.length ? `Existing categories: ${existingCategories.join(', ')}` : 'Existing categories: none'
+    const raw = await callClaude(apiKey,
+      `${catStr}\n\nInput text: "${text}"\n\nUse an existing category if suitable, otherwise create a new one (Work/Health/Learning/Family/Hobbies/Shopping/Self-improvement/Relationships etc.).\n\nReturn JSON only: {"title":"concise title","category":"category name"}`, 200)
+    const m = raw.match(/\{[^{}]*\}/)
+    if (!m) throw new Error('Categorization failed')
+    return JSON.parse(m[0])
+  }
   const catStr = existingCategories.length ? `既存カテゴリ: ${existingCategories.join('、')}` : '既存カテゴリ: なし'
   const raw = await callClaude(apiKey,
     `${catStr}\n\n入力テキスト: "${text}"\n\n既存カテゴリに合うものがあればそれを使用。なければ新規作成（仕事/健康/学習/家族/趣味/買い物/自己啓発/人間関係 など）。\n\nJSONのみ返してください：{"title":"簡潔なタイトル","category":"カテゴリ名"}`, 200)
@@ -315,7 +326,14 @@ async function categorizeTask(apiKey, text, existingCategories) {
   return JSON.parse(m[0])
 }
 
-async function getNextActions(apiKey, task) {
+async function getNextActions(apiKey, task, lang) {
+  if (lang === 'en') {
+    const raw = await callClaude(apiKey,
+      `Task "${task.title}" (${task.category}): suggest 3-5 concrete next actions.\nOriginal note: "${task.originalText}"\nReturn a JSON array only: ["action1","action2","action3"]`, 512)
+    const m = raw.match(/\[[\s\S]*?\]/)
+    if (!m) throw new Error('Failed to get suggestions')
+    return JSON.parse(m[0])
+  }
   const raw = await callClaude(apiKey,
     `タスク「${task.title}」（${task.category}）の具体的な次のアクションを3〜5個提案してください。\n元のメモ: "${task.originalText}"\nJSON配列のみ：["アクション1","アクション2","アクション3"]`, 512)
   const m = raw.match(/\[[\s\S]*?\]/)
@@ -323,7 +341,12 @@ async function getNextActions(apiKey, task) {
   return JSON.parse(m[0])
 }
 
-async function queryTasks(apiKey, query, tasks) {
+async function queryTasks(apiKey, query, tasks, lang) {
+  if (lang === 'en') {
+    const summary = tasks.length === 0 ? 'No tasks'
+      : tasks.map(t => `[${t.category}] ${t.title} (${t.status === 'done' ? 'done' : 'active'}): ${t.originalText}`).join('\n')
+    return callClaude(apiKey, `Task list:\n${summary}\n\nQuestion: ${query}\n\nAnswer concisely in English.`, 1024)
+  }
   const summary = tasks.length === 0 ? 'タスクはありません'
     : tasks.map(t => `[${t.category}] ${t.title}（${t.status === 'done' ? '完了' : '未完了'}）: ${t.originalText}`).join('\n')
   return callClaude(apiKey, `タスクリスト:\n${summary}\n\n質問: ${query}\n\n日本語で具体的・簡潔に答えてください。`, 1024)
@@ -332,30 +355,149 @@ async function queryTasks(apiKey, query, tasks) {
 // ─── Storage ──────────────────────────────────────────────────────
 const KEY = 'brain-dump-v1'
 const load = () => {
-  try { return JSON.parse(localStorage.getItem(KEY) || 'null') || {tasks:[],categories:[],apiKey:''} }
-  catch { return {tasks:[],categories:[],apiKey:''} }
+  try { return JSON.parse(localStorage.getItem(KEY) || 'null') || {tasks:[],categories:[],apiKey:'',lang:'ja'} }
+  catch { return {tasks:[],categories:[],apiKey:'',lang:'ja'} }
 }
 
 // ─── Colors ───────────────────────────────────────────────────────
 const COLORS = ['#e74c3c','#e67e22','#f1c40f','#2ecc71','#1abc9c','#3498db','#9b59b6','#e91e63','#00bcd4','#8bc34a']
 const catColor = (cat, cats) => COLORS[cats.indexOf(cat) % COLORS.length]
 
-const formatDateJP = isoDate => new Date(isoDate + 'T00:00:00').toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' })
-const getDueDateInfo = dueDate => {
+const formatDate = (isoDate, locale) => new Date(isoDate + 'T00:00:00').toLocaleDateString(locale, { month: 'numeric', day: 'numeric' })
+
+const getDueDateInfo = (dueDate, T) => {
   if (!dueDate) return null
   const today = new Date().toISOString().slice(0, 10)
-  if (dueDate < today) return { cls: 'due-overdue', label: `⚠️ ${formatDateJP(dueDate)}` }
-  if (dueDate === today) return { cls: 'due-today', label: `今日 ${formatDateJP(dueDate)}` }
-  return { cls: 'due-future', label: `📅 ${formatDateJP(dueDate)}` }
+  if (dueDate < today) return { cls: 'due-overdue', label: `⚠️ ${formatDate(dueDate, T.locale)}` }
+  if (dueDate === today) return { cls: 'due-today', label: `${T.today} ${formatDate(dueDate, T.locale)}` }
+  return { cls: 'due-future', label: `📅 ${formatDate(dueDate, T.locale)}` }
 }
 
-const PRIORITY = {
-  high:   { label: '高', color: '#ff3b30' },
-  medium: { label: '中', color: '#ff9500' },
-  low:    { label: '低', color: '#8e8e93' },
-}
+const PRIORITY_COLORS = { high: '#ff3b30', medium: '#ff9500', low: '#8e8e93' }
 const PRIORITY_ORDER = { high: 0, medium: 1, low: 2 }
 const cyclePriority = p => p === 'high' ? 'medium' : p === 'medium' ? 'low' : 'high'
+
+// ─── Translations ─────────────────────────────────────────────────
+const TRANSLATIONS = {
+  ja: {
+    locale: 'ja-JP',
+    appTitle: 'ブレインダンプ',
+    langToggle: 'EN',
+    statsText: (a, d) => `${a}件進行中 · ${d}件完了`,
+    clearAll: '全削除',
+    export: '📤 出力',
+    settings: '⚙️ 設定',
+    exportJSON: '📋 JSON でダウンロード',
+    exportText: '📄 テキストでダウンロード',
+    apiKeyTitle: '🔑 Anthropic APIキー',
+    apiKeyIntroPreLink: 'APIキーは ',
+    apiKeyIntroLink: 'console.anthropic.com',
+    apiKeyIntroPostLink: ' で取得できます。取得したキー（sk-ant-...）を以下に貼り付けて保存してください。',
+    save: '保存',
+    apiKeyHint: '🔒 キーはこのデバイスのみに保存されます。外部に送信されません。',
+    cancel: 'キャンセル',
+    inputPlaceholder: '頭の中にあることを何でも入力...\n（マイクボタンで音声入力も可能）',
+    listening: '🎤 聞いています...',
+    aiHint: 'AIが自動でカテゴリ分類します',
+    noVoicePwa: '🎤 音声入力はSafariで開くと使えます',
+    noVoice: '※ 音声入力非対応',
+    addBtn: '追加 ⌘↵',
+    categorizing: '分類中...',
+    queryPlaceholder: '「仕事のタスクは？」など自然言語で質問...',
+    queryBtn: '質問',
+    aiAnswer: '💬 AIの回答',
+    searchPlaceholder: 'キーワードで絞り込み...',
+    filterAll: 'すべて',
+    emptyMain: '✨ 頭の中にあることを入力して始めましょう',
+    emptyHint1: 'テキスト入力または🎤マイクボタンで音声入力できます',
+    emptyHint2: 'AIが自動でカテゴリ分類してタスク化します',
+    emptySearch: s => `「${s}」に一致するタスクはありません`,
+    emptyCat: 'このカテゴリにタスクはありません',
+    editTitle: '編集',
+    completeBtnTitle: '完了',
+    completeBtnTitleDone: '未完了に戻す',
+    deleteBtnTitle: '削除',
+    priorityTitle: '優先度を変更',
+    priority: { high: '高', medium: '中', low: '低' },
+    editTitlePlaceholder: 'タイトル',
+    editOriginalPlaceholder: '元のメモ（任意）',
+    dueDateLabel: '📅 期限',
+    clearDueDate: '× クリア',
+    today: '今日',
+    nextActionsLabel: '📋 次のアクション',
+    suggestBtn: '🔮 次のアクションを提案',
+    thinking: '考え中...',
+    taskDeleted: 'タスクを削除しました',
+    undoBtn: '元に戻す',
+    confirmClearAll: 'すべてのタスクを削除しますか？',
+    errorDefault: 'エラーが発生しました',
+    exportHeader: date => `ブレインダンプ — ${date}`,
+    exportSummary: (total, active, done) => `合計: ${total}件（進行中: ${active}件、完了: ${done}件）`,
+    exportStatusDone: '[完了]',
+    exportStatusActive: '[  ]',
+    exportPriority: { high: '[高]', medium: '[中]', low: '[低]' },
+    exportDuePrefix: '期限',
+  },
+  en: {
+    locale: 'en-US',
+    appTitle: 'Brain Dump',
+    langToggle: 'JP',
+    statsText: (a, d) => `${a} active · ${d} done`,
+    clearAll: 'Clear All',
+    export: '📤 Export',
+    settings: '⚙️ Settings',
+    exportJSON: '📋 Download as JSON',
+    exportText: '📄 Download as Text',
+    apiKeyTitle: '🔑 Anthropic API Key',
+    apiKeyIntroPreLink: 'Get your API key at ',
+    apiKeyIntroLink: 'console.anthropic.com',
+    apiKeyIntroPostLink: '. Paste the key (sk-ant-...) below and save.',
+    save: 'Save',
+    apiKeyHint: '🔒 Key stored only on this device. Never sent externally.',
+    cancel: 'Cancel',
+    inputPlaceholder: 'Enter anything on your mind...\n(tap the mic for voice input)',
+    listening: '🎤 Listening...',
+    aiHint: 'AI will auto-categorize your entry',
+    noVoicePwa: '🎤 Voice input available in Safari',
+    noVoice: '※ Voice input not supported',
+    addBtn: 'Add ⌘↵',
+    categorizing: 'Categorizing...',
+    queryPlaceholder: 'Ask in natural language, e.g. "What\'s in my work list?"',
+    queryBtn: 'Ask',
+    aiAnswer: '💬 AI Answer',
+    searchPlaceholder: 'Filter by keyword...',
+    filterAll: 'All',
+    emptyMain: '✨ Enter what\'s on your mind to get started',
+    emptyHint1: 'Type text or tap the 🎤 mic button for voice input',
+    emptyHint2: 'AI auto-categorizes and turns your notes into tasks',
+    emptySearch: s => `No tasks matching "${s}"`,
+    emptyCat: 'No tasks in this category',
+    editTitle: 'Edit',
+    completeBtnTitle: 'Complete',
+    completeBtnTitleDone: 'Undo complete',
+    deleteBtnTitle: 'Delete',
+    priorityTitle: 'Change priority',
+    priority: { high: 'High', medium: 'Mid', low: 'Low' },
+    editTitlePlaceholder: 'Title',
+    editOriginalPlaceholder: 'Original note (optional)',
+    dueDateLabel: '📅 Due date',
+    clearDueDate: '× Clear',
+    today: 'Today',
+    nextActionsLabel: '📋 Next Actions',
+    suggestBtn: '🔮 Suggest next actions',
+    thinking: 'Thinking...',
+    taskDeleted: 'Task deleted',
+    undoBtn: 'Undo',
+    confirmClearAll: 'Delete all tasks?',
+    errorDefault: 'An error occurred',
+    exportHeader: date => `Brain Dump — ${date}`,
+    exportSummary: (total, active, done) => `Total: ${total} tasks (${active} active, ${done} done)`,
+    exportStatusDone: '[Done]',
+    exportStatusActive: '[  ]',
+    exportPriority: { high: '[High]', medium: '[Mid]', low: '[Low]' },
+    exportDuePrefix: 'Due',
+  },
+}
 
 // ─── SwipeCard ────────────────────────────────────────────────────
 function SwipeCard({ children, isDone, disabled, onComplete, onDelete }) {
@@ -435,15 +577,23 @@ function App() {
   const [editOriginal, setEditOriginal] = useState('')
   const [editDueDate, setEditDueDate] = useState('')
   const [searchText, setSearchText] = useState('')
-  const [toast, setToast] = useState(null) // {message, onUndo}
+  const [toast, setToast] = useState(null)
   const [showExportMenu, setShowExportMenu] = useState(false)
   const toastTimer = useRef(null)
 
-  const inputSpeech = useSpeech(text => setInput(prev => prev ? prev + ' ' + text : text))
+  const lang = data.lang || 'ja'
+  const T = TRANSLATIONS[lang]
+
+  useEffect(() => {
+    document.title = T.appTitle
+    document.documentElement.lang = lang
+  }, [lang])
+
+  const inputSpeech = useSpeech(text => setInput(prev => prev ? prev + ' ' + text : text), lang)
   const querySpeech = useSpeech(text => {
     setQuery(text)
     setTimeout(() => document.getElementById('qi')?.dispatchEvent(new CustomEvent('vs', {detail:text})), 100)
-  })
+  }, lang)
 
   useEffect(() => {
     const d = load()
@@ -454,9 +604,9 @@ function App() {
   useEffect(() => {
     const el = document.getElementById('qi')
     if (!el) return
-    const h = e => { if (e.detail && data.apiKey) handleQueryText(e.detail) }
-    el.addEventListener('vs', h)
-    return () => el.removeEventListener('vs', h)
+    const handler = e => { if (e.detail && data.apiKey) handleQueryText(e.detail) }
+    el.addEventListener('vs', handler)
+    return () => el.removeEventListener('vs', handler)
   }, [data])
 
   const showToast = useCallback((message, onUndo) => {
@@ -470,6 +620,8 @@ function App() {
     localStorage.setItem(KEY, JSON.stringify(next))
   }, [])
 
+  const toggleLang = () => persist({ ...data, lang: lang === 'ja' ? 'en' : 'ja' })
+
   const saveApiKey = () => {
     const key = apiKeyInput.trim()
     if (!key) return
@@ -482,7 +634,7 @@ function App() {
     if (!data.apiKey) { setShowSettings(true); return }
     setAdding(true); setError('')
     try {
-      const { title, category } = await categorizeTask(data.apiKey, input.trim(), data.categories)
+      const { title, category } = await categorizeTask(data.apiKey, input.trim(), data.categories, lang)
       const task = {
         id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
         originalText: input.trim(), title, category,
@@ -491,15 +643,15 @@ function App() {
       const cats = data.categories.includes(category) ? data.categories : [...data.categories, category]
       persist({ ...data, tasks: [task, ...data.tasks], categories: cats })
       setInput('')
-    } catch (e) { setError(e.message || 'エラーが発生しました') }
+    } catch (e) { setError(e.message || T.errorDefault) }
     finally { setAdding(false) }
   }
 
   const handleQueryText = async q => {
     if (!q.trim() || querying) return
     setQuerying(true); setQueryResult(''); setError('')
-    try { setQueryResult(await queryTasks(data.apiKey, q.trim(), data.tasks)) }
-    catch (e) { setError(e.message || 'エラーが発生しました') }
+    try { setQueryResult(await queryTasks(data.apiKey, q.trim(), data.tasks, lang)) }
+    catch (e) { setError(e.message || T.errorDefault) }
     finally { setQuerying(false) }
   }
 
@@ -510,9 +662,9 @@ function App() {
     if (!task) return
     setLoadingActions(taskId); setError('')
     try {
-      const nextActions = await getNextActions(data.apiKey, task)
+      const nextActions = await getNextActions(data.apiKey, task, lang)
       persist({ ...data, tasks: data.tasks.map(t => t.id === taskId ? {...t, nextActions} : t) })
-    } catch (e) { setError(e.message || 'エラーが発生しました') }
+    } catch (e) { setError(e.message || T.errorDefault) }
     finally { setLoadingActions(null) }
   }
 
@@ -525,7 +677,7 @@ function App() {
     const task = data.tasks.find(t => t.id === id)
     const next = { ...data, tasks: data.tasks.filter(t => t.id !== id) }
     persist(next)
-    showToast('タスクを削除しました', () => {
+    showToast(T.taskDeleted, () => {
       persist({ ...next, tasks: [task, ...next.tasks] })
       setToast(null)
     })
@@ -557,7 +709,7 @@ function App() {
   })
 
   const clearAll = () => {
-    if (!confirm('すべてのタスクを削除しますか？')) return
+    if (!confirm(T.confirmClearAll)) return
     persist({ ...data, tasks: [], categories: [] }); setSelectedCat(null)
   }
 
@@ -570,18 +722,19 @@ function App() {
     setShowExportMenu(false)
   }
 
-  const exportText = () => {
+  const exportTextFile = () => {
     const ac = data.tasks.filter(t => t.status === 'active').length
     const dc = data.tasks.filter(t => t.status === 'done').length
-    const lines = [`ブレインダンプ — ${new Date().toLocaleDateString('ja-JP')}`, `合計: ${data.tasks.length}件（進行中: ${ac}件、完了: ${dc}件）`, '']
+    const dateStr = new Date().toLocaleDateString(T.locale)
+    const lines = [T.exportHeader(dateStr), T.exportSummary(data.tasks.length, ac, dc), '']
     const groups = {}
     data.tasks.forEach(t => { (groups[t.category] = groups[t.category] || []).push(t) })
     Object.entries(groups).forEach(([cat, tasks]) => {
       lines.push(`## ${cat}`)
       tasks.forEach(t => {
-        const st = t.status === 'done' ? '[完了]' : '[  ]'
-        const pr = { high:'[高]', medium:'[中]', low:'[低]' }[t.priority || 'medium']
-        const due = t.dueDate ? ` 期限:${t.dueDate}` : ''
+        const st = t.status === 'done' ? T.exportStatusDone : T.exportStatusActive
+        const pr = T.exportPriority[t.priority || 'medium']
+        const due = t.dueDate ? ` ${T.exportDuePrefix}:${t.dueDate}` : ''
         lines.push(`${st} ${pr} ${t.title}${due}`)
         if (t.originalText !== t.title) lines.push(`    ${t.originalText}`)
         t.nextActions.forEach((a, i) => lines.push(`    ${i + 1}. ${a}`))
@@ -616,40 +769,43 @@ function App() {
       // Header
       h('header', { class: 'header' },
         h('div', { class: 'header-left' },
-          h('h1', null, '🧠 ブレインダンプ'),
-          data.tasks.length > 0 && h('span', { class: 'stats' }, `${activeCount}件進行中 · ${doneCount}件完了`)
+          h('h1', null, '🧠 ', T.appTitle),
+          data.tasks.length > 0 && h('span', { class: 'stats' }, T.statsText(activeCount, doneCount))
         ),
         h('div', { class: 'header-right' },
-          data.tasks.length > 0 && h('button', { class: 'btn-ghost danger', onClick: clearAll }, '全削除'),
+          h('button', { class: 'btn-ghost lang-btn', onClick: toggleLang,
+            title: lang === 'ja' ? 'Switch to English' : '日本語に切り替え' }, T.langToggle),
+          data.tasks.length > 0 && h('button', { class: 'btn-ghost danger', onClick: clearAll }, T.clearAll),
           data.tasks.length > 0 && h('div', { class: 'export-wrap' },
-            h('button', { class: 'btn-ghost', onClick: () => setShowExportMenu(s => !s) }, '📤 出力'),
+            h('button', { class: 'btn-ghost', onClick: () => setShowExportMenu(s => !s) }, T.export),
             showExportMenu && h(Fragment, null,
               h('div', { style: 'position:fixed;inset:0;z-index:99', onClick: () => setShowExportMenu(false) }),
               h('div', { class: 'export-menu' },
-                h('button', { class: 'export-item', onClick: exportJSON }, '📋 JSON でダウンロード'),
-                h('button', { class: 'export-item', onClick: exportText }, '📄 テキストでダウンロード')
+                h('button', { class: 'export-item', onClick: exportJSON }, T.exportJSON),
+                h('button', { class: 'export-item', onClick: exportTextFile }, T.exportText)
               )
             )
           ),
-          h('button', { class: 'btn-ghost', onClick: () => setShowSettings(s => !s) }, '⚙️ 設定')
+          h('button', { class: 'btn-ghost', onClick: () => setShowSettings(s => !s) }, T.settings)
         )
       ),
 
       // Settings
       showSettings && h('div', { class: 'settings-panel' },
-        h('h3', null, '🔑 Anthropic APIキー'),
+        h('h3', null, T.apiKeyTitle),
         h('p', { class: 'settings-intro' },
-          'APIキーは ', h('a', { href: 'https://console.anthropic.com/settings/keys', target: '_blank' }, 'console.anthropic.com'),
-          ' で取得できます。取得したキー（sk-ant-...）を以下に貼り付けて保存してください。'
+          T.apiKeyIntroPreLink,
+          h('a', { href: 'https://console.anthropic.com/settings/keys', target: '_blank' }, T.apiKeyIntroLink),
+          T.apiKeyIntroPostLink
         ),
         h('div', { class: 'row' },
           h('input', { type: 'password', class: 'input mono', value: apiKeyInput,
             placeholder: 'sk-ant-api03-...', onInput: e => setApiKeyInput(e.target.value),
             onKeyDown: e => e.key === 'Enter' && saveApiKey(), autofocus: true }),
-          h('button', { class: 'btn-primary', onClick: saveApiKey }, '保存')
+          h('button', { class: 'btn-primary', onClick: saveApiKey }, T.save)
         ),
-        h('p', { class: 'hint' }, '🔒 キーはこのデバイスのみに保存されます。外部に送信されません。'),
-        data.apiKey && h('button', { class: 'btn-ghost', style: 'margin-top:8px', onClick: () => setShowSettings(false) }, 'キャンセル')
+        h('p', { class: 'hint' }, T.apiKeyHint),
+        data.apiKey && h('button', { class: 'btn-ghost', style: 'margin-top:8px', onClick: () => setShowSettings(false) }, T.cancel)
       ),
 
       // Input card
@@ -657,7 +813,7 @@ function App() {
         h('div', { class: 'textarea-wrap' },
           h('textarea', {
             class: 'main-textarea', value: input, disabled: adding,
-            placeholder: '頭の中にあることを何でも入力...\n（マイクボタンで音声入力も可能）',
+            placeholder: T.inputPlaceholder,
             onInput: e => setInput(e.target.value),
             onKeyDown: e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) handleAdd() },
           }),
@@ -666,13 +822,13 @@ function App() {
             onClick: inputSpeech.toggle,
           }, inputSpeech.listening ? '🔴' : '🎤')
         ),
-        inputSpeech.listening && h('p', { class: 'voice-status' }, '🎤 聞いています...'),
+        inputSpeech.listening && h('p', { class: 'voice-status' }, T.listening),
         h('div', { class: 'input-footer' },
           !inputSpeech.supported
-            ? h('span', { class: 'no-voice' }, IS_PWA ? '🎤 音声入力はSafariで開くと使えます' : '※ 音声入力非対応')
-            : h('span', { class: 'hint' }, 'AIが自動でカテゴリ分類します'),
+            ? h('span', { class: 'no-voice' }, IS_PWA ? T.noVoicePwa : T.noVoice)
+            : h('span', { class: 'hint' }, T.aiHint),
           h('button', { class: 'btn-primary', onClick: handleAdd, disabled: adding || !input.trim() },
-            adding ? h(Fragment, null, h('span', { class: 'spin' }), ' 分類中...') : '追加 ⌘↵')
+            adding ? h(Fragment, null, h('span', { class: 'spin' }), ' ', T.categorizing) : T.addBtn)
         )
       ),
 
@@ -683,7 +839,7 @@ function App() {
       h('div', { class: 'query-bar' },
         h('span', { class: 'query-icon' }, '🔍'),
         h('input', { id: 'qi', class: 'query-input', value: query,
-          placeholder: '「仕事のタスクは？」など自然言語で質問...',
+          placeholder: T.queryPlaceholder,
           onInput: e => setQuery(e.target.value),
           onKeyDown: e => e.key === 'Enter' && handleQuery() }),
         querySpeech.supported && h('button', {
@@ -691,13 +847,13 @@ function App() {
           onClick: querySpeech.toggle,
         }, querySpeech.listening ? '🔴' : '🎤'),
         h('button', { class: 'btn-secondary', onClick: handleQuery, disabled: querying || !query.trim() },
-          querying ? '...' : '質問')
+          querying ? '...' : T.queryBtn)
       ),
 
       // Query result
       queryResult && h('div', { class: 'query-result' },
         h('div', { class: 'qr-header' },
-          h('strong', null, '💬 AIの回答'),
+          h('strong', null, T.aiAnswer),
           h('button', { class: 'close-btn', onClick: () => setQueryResult('') }, '✕')
         ),
         h('div', { class: 'qr-body' }, queryResult.split('\n').map((line, i) => h('p', { key: i }, line)))
@@ -709,7 +865,7 @@ function App() {
         h('input', {
           class: 'search-input',
           value: searchText,
-          placeholder: 'キーワードで絞り込み...',
+          placeholder: T.searchPlaceholder,
           onInput: e => setSearchText(e.target.value),
         }),
         searchText && h('button', { class: 'search-clear', onClick: () => setSearchText('') }, '✕')
@@ -720,7 +876,7 @@ function App() {
         h('button', {
           class: `chip ${selectedCat === null ? 'chip-active' : ''}`,
           onClick: () => setSelectedCat(null),
-        }, 'すべて ', h('span', { class: 'count' }, data.tasks.length)),
+        }, T.filterAll, ' ', h('span', { class: 'count' }, data.tasks.length)),
         data.categories.map(cat => {
           const cnt = data.tasks.filter(t => t.category === cat).length
           const color = catColor(cat, data.categories)
@@ -739,16 +895,19 @@ function App() {
         filtered.length === 0 && h('div', { class: 'empty-state' },
           data.tasks.length === 0
             ? h(Fragment, null,
-                '✨ 頭の中にあることを入力して始めましょう', h('br'),
-                h('small', null, 'テキスト入力または🎤マイクボタンで音声入力できます'), h('br'),
-                h('small', null, 'AIが自動でカテゴリ分類してタスク化します'))
+                T.emptyMain, h('br'),
+                h('small', null, T.emptyHint1), h('br'),
+                h('small', null, T.emptyHint2))
             : search
-              ? `「${searchText}」に一致するタスクはありません`
-              : 'このカテゴリにタスクはありません'
+              ? T.emptySearch(searchText)
+              : T.emptyCat
         ),
         filtered.map(task => {
           const color = catColor(task.category, data.categories)
           const isEditing = editingId === task.id
+          const pColor = PRIORITY_COLORS[task.priority || 'medium']
+          const pLabel = T.priority[task.priority || 'medium']
+          const dueDateInfo = getDueDateInfo(task.dueDate, T)
           return h(SwipeCard, {
             key: task.id,
             isDone: task.status === 'done',
@@ -759,21 +918,23 @@ function App() {
             h('div', { class: 'task-top' },
               h('div', { class: 'task-labels' },
                 h('span', { class: 'tag', style: `background:${color}22;color:${color};border-color:${color}55` }, task.category),
-                (() => { const p = PRIORITY[task.priority || 'medium']; return h('button', { class: 'priority-badge', style: `color:${p.color};border-color:${p.color}55;background:${p.color}18`, onClick: () => togglePriority(task.id), title: '優先度を変更' }, p.label) })(),
-                (() => { const di = getDueDateInfo(task.dueDate); return di && h('span', { class: `due-badge ${di.cls}` }, di.label) })(),
-                h('span', { class: 'task-date' }, new Date(task.createdAt).toLocaleDateString('ja-JP', {month:'numeric',day:'numeric'}))
+                h('button', { class: 'priority-badge',
+                  style: `color:${pColor};border-color:${pColor}55;background:${pColor}18`,
+                  onClick: () => togglePriority(task.id), title: T.priorityTitle }, pLabel),
+                dueDateInfo && h('span', { class: `due-badge ${dueDateInfo.cls}` }, dueDateInfo.label),
+                h('span', { class: 'task-date' }, new Date(task.createdAt).toLocaleDateString(T.locale, {month:'numeric',day:'numeric'}))
               ),
               h('div', { class: 'task-btns' },
                 !isEditing && h('button', {
-                  class: 'icon-btn', title: '編集',
+                  class: 'icon-btn', title: T.editTitle,
                   onClick: () => startEdit(task),
                 }, '✏️'),
                 h('button', {
                   class: `icon-btn ${task.status === 'done' ? 'icon-done' : ''}`,
                   onClick: () => toggleDone(task.id),
-                  title: task.status === 'done' ? '未完了に戻す' : '完了',
+                  title: task.status === 'done' ? T.completeBtnTitleDone : T.completeBtnTitle,
                 }, task.status === 'done' ? '↩' : '✓'),
-                h('button', { class: 'icon-btn icon-del', title: '削除', onClick: () => deleteTask(task.id) }, '×')
+                h('button', { class: 'icon-btn icon-del', title: T.deleteBtnTitle, onClick: () => deleteTask(task.id) }, '×')
               )
             ),
 
@@ -784,24 +945,24 @@ function App() {
                     class: 'edit-field', value: editTitle, autofocus: true,
                     onInput: e => setEditTitle(e.target.value),
                     onKeyDown: e => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') cancelEdit() },
-                    placeholder: 'タイトル',
+                    placeholder: T.editTitlePlaceholder,
                   }),
                   h('textarea', {
                     class: 'edit-original', value: editOriginal,
                     onInput: e => setEditOriginal(e.target.value),
-                    placeholder: '元のメモ（任意）',
+                    placeholder: T.editOriginalPlaceholder,
                   }),
                   h('div', { class: 'edit-date-row' },
-                    h('span', { class: 'edit-date-label' }, '📅 期限'),
+                    h('span', { class: 'edit-date-label' }, T.dueDateLabel),
                     h('input', {
                       type: 'date', class: 'edit-date', value: editDueDate,
                       onInput: e => setEditDueDate(e.target.value),
                     }),
-                    editDueDate && h('button', { class: 'btn-clear-date', onClick: () => setEditDueDate(''), title: '期限をクリア' }, '× クリア')
+                    editDueDate && h('button', { class: 'btn-clear-date', onClick: () => setEditDueDate(''), title: T.clearDueDate }, T.clearDueDate)
                   ),
                   h('div', { class: 'edit-actions' },
-                    h('button', { class: 'btn-save', onClick: saveEdit }, '保存'),
-                    h('button', { class: 'btn-cancel', onClick: cancelEdit }, 'キャンセル')
+                    h('button', { class: 'btn-save', onClick: saveEdit }, T.save),
+                    h('button', { class: 'btn-cancel', onClick: cancelEdit }, T.cancel)
                   )
                 )
               : h(Fragment, null,
@@ -810,13 +971,15 @@ function App() {
                 ),
 
             task.nextActions.length > 0 && h('div', { class: 'actions-box', style: `border-left-color:${color}` },
-              h('p', { class: 'actions-label', style: `color:${color}` }, '📋 次のアクション'),
+              h('p', { class: 'actions-label', style: `color:${color}` }, T.nextActionsLabel),
               h('ol', { class: 'actions-list' }, task.nextActions.map((a, i) => h('li', { key: i }, a)))
             ),
             task.status !== 'done' && !isEditing && h('button', {
               class: 'suggest-btn', disabled: loadingActions === task.id,
               onClick: () => handleSuggest(task.id),
-            }, loadingActions === task.id ? h(Fragment, null, h('span', { class: 'spin' }), ' 考え中...') : '🔮 次のアクションを提案')
+            }, loadingActions === task.id
+              ? h(Fragment, null, h('span', { class: 'spin' }), ' ', T.thinking)
+              : T.suggestBtn)
           )
         })
       )
@@ -825,7 +988,7 @@ function App() {
     // Toast
     toast && h('div', { class: 'toast' },
       h('span', null, toast.message),
-      h('button', { class: 'toast-undo', onClick: () => { toast.onUndo(); clearTimeout(toastTimer.current) } }, '元に戻す')
+      h('button', { class: 'toast-undo', onClick: () => { toast.onUndo(); clearTimeout(toastTimer.current) } }, T.undoBtn)
     )
   )
 }
@@ -834,4 +997,3 @@ render(h(App, null), document.getElementById('app'))
 </script>
 </body>
 </html>
-
