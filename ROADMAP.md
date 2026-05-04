@@ -1,7 +1,7 @@
 # ブレインダンプ — Autonomous Improvement Roadmap
 
 Managed by an autonomous Claude agent. Updated after each improvement cycle.
-Last updated: 2026-04-23
+Last updated: 2026-05-04
 
 ## ✅ Done
 - [x] Core app: brain dump input → AI categorization → task list
@@ -20,10 +20,11 @@ Last updated: 2026-04-23
 - [x] Priority levels — High/Medium/Low badge, clickable to cycle, tasks sorted by priority
 - [x] Search bar — filter tasks by keyword
 - [x] Due dates — optional date picker per task, color-coded overdue/today/future badges
+- [x] Swipe to complete / swipe to delete (mobile gesture)
+- [x] Export data — JSON / text download
+- [x] Language toggle — Japanese / English switch
 
 ## 📋 Planned (priority order)
-- [ ] Swipe to complete / swipe to delete (mobile gesture)
-- [ ] Language toggle — Japanese / English switch
 - [ ] Better onboarding — guided first-use flow
 - [ ] Task notes — expandable sub-notes field
 - [ ] Batch select — checkbox mode, bulk complete/delete
@@ -42,6 +43,7 @@ Last updated: 2026-04-23
 | 2026-04-21 | Initial deploy | Setup | ✅ |
 | 2026-04-21 | Task editing, dark mode, undo delete | HTML output verified | ✅ |
 | 2026-04-21 | Priority levels (High/Medium/Low) | Deployed | ✅ |
+| 2026-05-04 | Language toggle (JP/EN) | Deployed | ✅ |
 
 ## 💡 User Ideas
 - Voice input for easier navigation ✅
@@ -52,24 +54,16 @@ Last updated: 2026-04-23
 - 2026-04-21: Initial deploy, voice input, CORS fix
 - 2026-04-21: Task editing (✏️ inline), dark mode (prefers-color-scheme), undo delete (toast)
 - 2026-04-21: Priority levels — 高/中/低 badge on each task, click to cycle, auto-sort by priority
+- 2026-04-22: キーワード検索バーを追加
+- 2026-04-23: 期限設定機能（日付ピッカー、色分けバッジ）
+- 2026-04-24: スワイプでタスク完了 / 削除（モバイルジェスチャー）
+- 2026-04-25: データエクスポート（JSON / テキスト）
+- 2026-05-04: 言語切り替え（日本語 / English）— header toggle, full UI + AI prompts adapt to selected language
 
-## 2026-04-22 - キーワード検索バー
-- タスク一覧をキーワードでリアルタイム絞り込む検索バーを追加
-- タイトル・元メモ・カテゴリ名を対象に検索
-- 検索結果ゼロ時の空状態メッセージを追加
-
-## 2026-04-23 - 期限設定機能
-- タスクの編集モードに「期限」日付ピッカーを追加
-- 期限バッジをタスクカードに表示（色分け：期限切れ赤・今日オレンジ・将来グレー）
-- 期限なしはバッジ非表示、「× クリア」で期限を削除可能
-- localStorage互換性を維持（dueDate: null でデフォルト）
-
-## 完了した改善
-- [x] Export data — JSON ・テキストでダウンロード — 2026-04-25
-- [x] スワイプでタスク完了 / スワイプで削除（モバイルジェスチャー） — 2026-04-24
-
-## 2026-04-25 - データエクスポート
-- タスクを2形式でダウンロードできる「📤 出力」ボタンをヘッダーに追加
-- JSON：全タスクデータをbrain-dump-YYYY-MM-DD.jsonで保存
-- テキスト：カテゴリ別で読みやすいbrain-dump-YYYY-MM-DD.txtで保存
-- localStorageスキーマ互換性を維持
+## 2026-05-04 - 言語切り替え機能 (Language Toggle)
+- ヘッダーに「EN / JP」切り替えボタンを追加
+- 全UIテキストを日本語・英語の両方で翻訳
+- 言語設定はlocalStorageに保存（backward-compatible: デフォルト ja）
+- AIプロンプト（分類・提案・クエリ）も選択言語に合わせて切り替え
+- 音声入力言語も切り替え（ja-JP / en-US）
+- 日付表示フォーマットも言語に合わせて切り替え
