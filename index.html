@@ -229,6 +229,27 @@
     .suggest-btn:hover:not(:disabled){border-color:var(--primary);color:var(--primary);background:#f3f4ff}
     .suggest-btn:disabled{cursor:not-allowed}
     .no-voice{font-size:.75rem;color:var(--muted);margin-top:4px}
+    /* Onboarding overlay */
+    .onboard-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1000;
+      display:flex;align-items:center;justify-content:center;padding:20px;
+      animation:fadeIn .3s ease}
+    @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+    @keyframes cardUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+    .onboard-card{background:var(--surface);border-radius:22px;padding:32px 24px;
+      max-width:360px;width:100%;box-shadow:0 24px 64px rgba(0,0,0,.3);
+      animation:cardUp .35s ease}
+    .onboard-logo{text-align:center;font-size:3.2rem;margin-bottom:6px}
+    .onboard-title{text-align:center;font-size:1.45rem;font-weight:700;color:var(--primary);margin-bottom:4px}
+    .onboard-subtitle{text-align:center;font-size:.875rem;color:var(--muted);margin-bottom:28px;line-height:1.5}
+    .onboard-steps{display:flex;flex-direction:column;gap:18px;margin-bottom:28px}
+    .onboard-step{display:flex;align-items:flex-start;gap:14px}
+    .onboard-step-icon{font-size:1.7rem;flex-shrink:0;width:38px;text-align:center;margin-top:1px}
+    .onboard-step-title{font-size:.9rem;font-weight:600;margin-bottom:2px;color:var(--text)}
+    .onboard-step-desc{font-size:.82rem;color:var(--muted);line-height:1.5}
+    .onboard-btn{width:100%;padding:14px;background:var(--primary);color:#fff;border:none;
+      border-radius:12px;font-size:1rem;font-family:inherit;font-weight:600;
+      cursor:pointer;transition:background .15s;letter-spacing:.01em}
+    .onboard-btn:hover{background:var(--primary-h)}
     /* Due date badge */
     .due-badge{font-size:.72rem;font-weight:600;padding:2px 8px;border-radius:10px;
       border:1px solid;letter-spacing:.01em;display:inline-flex;align-items:center;gap:3px}
@@ -559,9 +580,44 @@ function SwipeCard({ children, isDone, disabled, onComplete, onDelete }) {
   )
 }
 
+// ─── Onboarding ───────────────────────────────────────────────────
+function Onboarding({ lang, onDone }) {
+  const isEn = lang === 'en'
+  const steps = isEn ? [
+    { icon: '✍️', title: 'Brain Dump', desc: 'Type anything on your mind — tasks, ideas, worries, plans.' },
+    { icon: '🤖', title: 'AI Auto-Categorizes', desc: 'Claude AI instantly sorts your input into tidy categories.' },
+    { icon: '🔮', title: 'Get Next Actions', desc: 'Ask AI for concrete next steps on any task, anytime.' },
+  ] : [
+    { icon: '✍️', title: '頭の中を吐き出す', desc: 'タスク、アイデア、心配事、何でも入力するだけ。' },
+    { icon: '🤖', title: 'AIが自動整理', desc: 'Claude AIが瞬時にカテゴリ分類してタスク化します。' },
+    { icon: '🔮', title: '次のアクションを提案', desc: '各タスクにAIが具体的な次の行動を提案してくれます。' },
+  ]
+  return h('div', { class: 'onboard-overlay' },
+    h('div', { class: 'onboard-card' },
+      h('div', { class: 'onboard-logo' }, '🧠'),
+      h('h2', { class: 'onboard-title' }, isEn ? 'Brain Dump' : 'ブレインダンプ'),
+      h('p', { class: 'onboard-subtitle' }, isEn ? 'Your AI-powered second brain' : 'AIが整理するあなたの第二の脳'),
+      h('div', { class: 'onboard-steps' },
+        steps.map((s, i) => h('div', { key: i, class: 'onboard-step' },
+          h('div', { class: 'onboard-step-icon' }, s.icon),
+          h('div', null,
+            h('div', { class: 'onboard-step-title' }, s.title),
+            h('div', { class: 'onboard-step-desc' }, s.desc)
+          )
+        ))
+      ),
+      h('button', { class: 'onboard-btn', onClick: onDone }, isEn ? 'Get Started' : 'はじめる')
+    )
+  )
+}
+
 // ─── App ──────────────────────────────────────────────────────────
 function App() {
   const [data, setData] = useState(load)
+  const [showOnboarding, setShowOnboarding] = useState(() => {
+    const d = load()
+    return !d.onboardingDone && d.tasks.length === 0
+  })
   const [input, setInput] = useState('')
   const [query, setQuery] = useState('')
   const [queryResult, setQueryResult] = useState('')
@@ -619,6 +675,11 @@ function App() {
     setData(next)
     localStorage.setItem(KEY, JSON.stringify(next))
   }, [])
+
+  const dismissOnboarding = () => {
+    persist({ ...data, onboardingDone: true })
+    setShowOnboarding(false)
+  }
 
   const toggleLang = () => persist({ ...data, lang: lang === 'ja' ? 'en' : 'ja' })
 
@@ -764,6 +825,7 @@ function App() {
   const doneCount = data.tasks.filter(t => t.status === 'done').length
 
   return h(Fragment, null,
+    showOnboarding && h(Onboarding, { lang, onDone: dismissOnboarding }),
     h('div', { class: 'app' },
 
       // Header
