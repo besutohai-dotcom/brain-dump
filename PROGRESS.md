@@ -1,5 +1,4 @@
-# In Progress
-started_at: 2026-05-05T00:00:00Z
+# Done
 feature: Better onboarding
-step: 4 - updating ROADMAP.md
-status: in_progress
+status: done
+completed_at: 2026-05-05T00:00:00Z
