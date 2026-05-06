@@ -1,5 +1,5 @@
 # In Progress
-started_at: 2026-05-05T00:00:00Z
-feature: Better onboarding
-step: 5 - done
-status: done
+started_at: 2026-05-06T00:00:00Z
+feature: Task notes
+step: 3 - deploying index.html to GitHub
+status: in_progress
