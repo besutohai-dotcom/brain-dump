@@ -229,6 +229,14 @@
     .suggest-btn:hover:not(:disabled){border-color:var(--primary);color:var(--primary);background:#f3f4ff}
     .suggest-btn:disabled{cursor:not-allowed}
     .no-voice{font-size:.75rem;color:var(--muted);margin-top:4px}
+    /* Task notes */
+    .notes-section{margin-bottom:10px}
+    .notes-textarea{width:100%;padding:8px 10px;border:1px solid var(--border);
+      border-radius:8px;font-family:inherit;font-size:.855rem;outline:none;
+      resize:vertical;min-height:72px;background:var(--surface);color:var(--text);
+      line-height:1.55;transition:border-color .15s}
+    .notes-textarea:focus{border-color:var(--primary)}
+    .icon-note.has-note{color:#ff9500!important;border-color:#ff950055!important;background:#ff950018!important}
     /* Due date badge */
     .due-badge{font-size:.72rem;font-weight:600;padding:2px 8px;border-radius:10px;
       border:1px solid;letter-spacing:.01em;display:inline-flex;align-items:center;gap:3px}
@@ -464,6 +472,8 @@ const TRANSLATIONS = {
     exportStatusActive: '[  ]',
     exportPriority: { high: '[高]', medium: '[中]', low: '[低]' },
     exportDuePrefix: '期限',
+    notesBtnTitle: 'メモを表示',
+    notesPlaceholder: 'タスクのメモを追加...',
     onboarding: {
       title: 'ブレインダンプへようこそ',
       desc: '頭の中のアイデアやタスクを素早くキャプチャ。AIが自動で整理・分類してくれます。',
@@ -535,6 +545,8 @@ const TRANSLATIONS = {
     exportStatusActive: '[  ]',
     exportPriority: { high: '[High]', medium: '[Mid]', low: '[Low]' },
     exportDuePrefix: 'Due',
+    notesBtnTitle: 'Show notes',
+    notesPlaceholder: 'Add a note to this task...',
     onboarding: {
       title: 'Welcome to Brain Dump',
       desc: 'Quickly capture ideas and tasks from your mind. AI automatically organizes everything for you.',
@@ -656,6 +668,7 @@ function App() {
   const [searchText, setSearchText] = useState('')
   const [toast, setToast] = useState(null)
   const [showExportMenu, setShowExportMenu] = useState(false)
+  const [expandedNotes, setExpandedNotes] = useState(new Set())
   const toastTimer = useRef(null)
 
   const lang = data.lang || 'ja'
@@ -800,6 +813,17 @@ function App() {
   }
 
   const cancelEdit = () => setEditingId(null)
+
+  const toggleNotes = id => setExpandedNotes(prev => {
+    const next = new Set(prev)
+    next.has(id) ? next.delete(id) : next.add(id)
+    return next
+  })
+
+  const saveNote = (id, text) => persist({
+    ...data,
+    tasks: data.tasks.map(t => t.id === id ? {...t, notes: text} : t)
+  })
 
   const togglePriority = id => persist({
     ...data,
@@ -1031,6 +1055,11 @@ function App() {
               ),
               h('div', { class: 'task-btns' },
                 !isEditing && h('button', {
+                  class: `icon-btn icon-note ${task.notes ? 'has-note' : ''}`,
+                  title: T.notesBtnTitle,
+                  onClick: () => toggleNotes(task.id),
+                }, '📝'),
+                !isEditing && h('button', {
                   class: 'icon-btn', title: T.editTitle,
                   onClick: () => startEdit(task),
                 }, '✏️'),
@@ -1074,6 +1103,15 @@ function App() {
                   h('h3', { class: 'task-title' }, task.title),
                   h('p', { class: 'task-original' }, task.originalText)
                 ),
+
+            !isEditing && expandedNotes.has(task.id) && h('div', { class: 'notes-section' },
+              h('textarea', {
+                class: 'notes-textarea',
+                placeholder: T.notesPlaceholder,
+                value: task.notes || '',
+                onInput: e => saveNote(task.id, e.target.value),
+              })
+            ),
 
             task.nextActions.length > 0 && h('div', { class: 'actions-box', style: `border-left-color:${color}` },
               h('p', { class: 'actions-label', style: `color:${color}` }, T.nextActionsLabel),
