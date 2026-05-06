@@ -1,7 +1,7 @@
 # ブレインダンプ — Autonomous Improvement Roadmap
 
 Managed by an autonomous Claude agent. Updated after each improvement cycle.
-Last updated: 2026-05-05
+Last updated: 2026-05-06
 
 ## Done
 - [x] Core app: brain dump input to AI categorization to task list
@@ -24,9 +24,9 @@ Last updated: 2026-05-05
 - [x] Export data -- JSON / text download
 - [x] Language toggle -- Japanese / English switch
 - [x] Better onboarding -- guided first-use flow with animated modal overlay
+- [x] Task notes -- expandable sub-notes field per task
 
 ## Planned (priority order)
-- [ ] Task notes -- expandable sub-notes field
 - [ ] Batch select -- checkbox mode, bulk complete/delete
 - [ ] Statistics view -- tasks done per day, category breakdown
 - [ ] Browser push notifications -- remind about active tasks
@@ -45,6 +45,7 @@ Last updated: 2026-05-05
 | 2026-04-21 | Priority levels (High/Medium/Low) | Deployed | OK |
 | 2026-05-04 | Language toggle (JP/EN) | Deployed | OK |
 | 2026-05-05 | Better onboarding overlay | Deployed | OK |
+| 2026-05-06 | Task notes (expandable sub-notes) | Deployed | OK |
 
 ## User Ideas
 - Voice input for easier navigation (done)
@@ -61,10 +62,11 @@ Last updated: 2026-05-05
 - 2026-04-25: Data export (JSON / text)
 - 2026-05-04: Language toggle (Japanese / English) -- header toggle, full UI + AI prompts adapt
 - 2026-05-05: Better onboarding -- animated modal overlay for first-time users, 3-step feature tour, persists dismissal in localStorage
+- 2026-05-06: Task notes -- 📝 button per task, expandable textarea, auto-saved to localStorage, amber highlight when note exists
 
-## 2026-05-05 - Better Onboarding (First-Use Flow)
-- Full-screen animated overlay shown only to new users (no tasks + no onboardingDone flag)
-- Card slides in with smooth animation; adapts to JP/EN language toggle
-- 3-step feature tour: Brain Dump input, AI auto-categorization, Next Actions suggestions
-- Single "Get Started" / "はじめる" button dismisses and sets onboardingDone in localStorage
-- Existing users are never interrupted
+## 2026-05-06 - Task Notes (Expandable Sub-Notes)
+- 📝 button added to every task card; amber color when a note exists
+- Clicking the button toggles an expandable textarea below the task
+- Notes are auto-saved to localStorage on every keystroke (onInput)
+- Fully backward-compatible: existing tasks without notes field work unchanged
+- Bilingual: "メモを追加..." / "Add a note to this task..."
