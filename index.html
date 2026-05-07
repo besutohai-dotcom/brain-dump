@@ -237,6 +237,18 @@
       line-height:1.55;transition:border-color .15s}
     .notes-textarea:focus{border-color:var(--primary)}
     .icon-note.has-note{color:#ff9500!important;border-color:#ff950055!important;background:#ff950018!important}
+    /* Batch select */
+    .batch-bar{position:fixed;bottom:0;left:0;right:0;background:var(--surface);
+      border-top:1px solid var(--border);z-index:200;
+      padding:10px 16px calc(10px + env(safe-area-inset-bottom));
+      display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+      box-shadow:0 -4px 16px rgba(0,0,0,.1)}
+    .batch-count{flex:1;font-size:.88rem;font-weight:500;color:var(--text);min-width:80px}
+    .task-checkbox{width:22px;height:22px;border-radius:50%;border:2px solid var(--border);
+      flex-shrink:0;display:flex;align-items:center;justify-content:center;
+      cursor:pointer;transition:all .15s;background:var(--surface);
+      font-size:.75rem;line-height:1;margin-right:2px}
+    .task-checkbox.checked{background:var(--primary);border-color:var(--primary);color:#fff}
     /* Due date badge */
     .due-badge{font-size:.72rem;font-weight:600;padding:2px 8px;border-radius:10px;
       border:1px solid;letter-spacing:.01em;display:inline-flex;align-items:center;gap:3px}
@@ -474,6 +486,12 @@ const TRANSLATIONS = {
     exportDuePrefix: '期限',
     notesBtnTitle: 'メモを表示',
     notesPlaceholder: 'タスクのメモを追加...',
+    batchSelect: '選択',
+    batchCancel: 'キャンセル',
+    batchSelected: n => `${n}件を選択中`,
+    batchSelectAll: 'すべて選択',
+    batchComplete: n => `${n}件を完了`,
+    batchDelete: n => `${n}件を削除`,
     onboarding: {
       title: 'ブレインダンプへようこそ',
       desc: '頭の中のアイデアやタスクを素早くキャプチャ。AIが自動で整理・分類してくれます。',
@@ -547,6 +565,12 @@ const TRANSLATIONS = {
     exportDuePrefix: 'Due',
     notesBtnTitle: 'Show notes',
     notesPlaceholder: 'Add a note to this task...',
+    batchSelect: 'Select',
+    batchCancel: 'Cancel',
+    batchSelected: n => `${n} selected`,
+    batchSelectAll: 'Select all',
+    batchComplete: n => `Complete ${n}`,
+    batchDelete: n => `Delete ${n}`,
     onboarding: {
       title: 'Welcome to Brain Dump',
       desc: 'Quickly capture ideas and tasks from your mind. AI automatically organizes everything for you.',
@@ -669,6 +693,8 @@ function App() {
   const [toast, setToast] = useState(null)
   const [showExportMenu, setShowExportMenu] = useState(false)
   const [expandedNotes, setExpandedNotes] = useState(new Set())
+  const [batchMode, setBatchMode] = useState(false)
+  const [selectedIds, setSelectedIds] = useState(new Set())
   const toastTimer = useRef(null)
 
   const lang = data.lang || 'ja'
@@ -830,6 +856,28 @@ function App() {
     tasks: data.tasks.map(t => t.id === id ? {...t, priority: cyclePriority(t.priority || 'medium')} : t)
   })
 
+  const toggleBatchMode = () => { setBatchMode(m => !m); setSelectedIds(new Set()) }
+
+  const toggleSelectTask = id => setSelectedIds(prev => {
+    const next = new Set(prev)
+    next.has(id) ? next.delete(id) : next.add(id)
+    return next
+  })
+
+  const batchSelectAll = () => setSelectedIds(new Set(filtered.map(t => t.id)))
+
+  const batchComplete = () => {
+    persist({ ...data, tasks: data.tasks.map(t => selectedIds.has(t.id) ? {...t, status: 'done'} : t) })
+    setBatchMode(false); setSelectedIds(new Set())
+  }
+
+  const batchDelete = () => {
+    const toDelete = data.tasks.filter(t => selectedIds.has(t.id))
+    const next = { ...data, tasks: data.tasks.filter(t => !selectedIds.has(t.id)) }
+    persist(next); setBatchMode(false); setSelectedIds(new Set())
+    showToast(T.taskDeleted, () => { persist({ ...next, tasks: [...toDelete, ...next.tasks] }); setToast(null) })
+  }
+
   const clearAll = () => {
     if (!confirm(T.confirmClearAll)) return
     persist({ ...data, tasks: [], categories: [] }); setSelectedCat(null)
@@ -904,8 +952,8 @@ function App() {
         h('div', { class: 'header-right' },
           h('button', { class: 'btn-ghost lang-btn', onClick: toggleLang,
             title: lang === 'ja' ? 'Switch to English' : '日本語に切り替え' }, T.langToggle),
-          data.tasks.length > 0 && h('button', { class: 'btn-ghost danger', onClick: clearAll }, T.clearAll),
-          data.tasks.length > 0 && h('div', { class: 'export-wrap' },
+          !batchMode && data.tasks.length > 0 && h('button', { class: 'btn-ghost danger', onClick: clearAll }, T.clearAll),
+          !batchMode && data.tasks.length > 0 && h('div', { class: 'export-wrap' },
             h('button', { class: 'btn-ghost', onClick: () => setShowExportMenu(s => !s) }, T.export),
             showExportMenu && h(Fragment, null,
               h('div', { style: 'position:fixed;inset:0;z-index:99', onClick: () => setShowExportMenu(false) }),
@@ -915,7 +963,9 @@ function App() {
               )
             )
           ),
-          h('button', { class: 'btn-ghost', onClick: () => setShowSettings(s => !s) }, T.settings)
+          data.tasks.length > 0 && h('button', { class: 'btn-ghost', onClick: toggleBatchMode },
+            batchMode ? T.batchCancel : T.batchSelect),
+          !batchMode && h('button', { class: 'btn-ghost', onClick: () => setShowSettings(s => !s) }, T.settings)
         )
       ),
 
@@ -1040,20 +1090,24 @@ function App() {
           return h(SwipeCard, {
             key: task.id,
             isDone: task.status === 'done',
-            disabled: isEditing,
+            disabled: isEditing || batchMode,
             onComplete: () => toggleDone(task.id),
             onDelete: () => deleteTask(task.id),
           },
             h('div', { class: 'task-top' },
               h('div', { class: 'task-labels' },
+                batchMode && h('div', {
+                  class: `task-checkbox ${selectedIds.has(task.id) ? 'checked' : ''}`,
+                  onClick: () => toggleSelectTask(task.id),
+                }, selectedIds.has(task.id) ? '✓' : ''),
                 h('span', { class: 'tag', style: `background:${color}22;color:${color};border-color:${color}55` }, task.category),
-                h('button', { class: 'priority-badge',
+                !batchMode && h('button', { class: 'priority-badge',
                   style: `color:${pColor};border-color:${pColor}55;background:${pColor}18`,
                   onClick: () => togglePriority(task.id), title: T.priorityTitle }, pLabel),
                 dueDateInfo && h('span', { class: `due-badge ${dueDateInfo.cls}` }, dueDateInfo.label),
                 h('span', { class: 'task-date' }, new Date(task.createdAt).toLocaleDateString(T.locale, {month:'numeric',day:'numeric'}))
               ),
-              h('div', { class: 'task-btns' },
+              !batchMode && h('div', { class: 'task-btns' },
                 !isEditing && h('button', {
                   class: `icon-btn icon-note ${task.notes ? 'has-note' : ''}`,
                   title: T.notesBtnTitle,
@@ -1117,7 +1171,7 @@ function App() {
               h('p', { class: 'actions-label', style: `color:${color}` }, T.nextActionsLabel),
               h('ol', { class: 'actions-list' }, task.nextActions.map((a, i) => h('li', { key: i }, a)))
             ),
-            task.status !== 'done' && !isEditing && h('button', {
+            task.status !== 'done' && !isEditing && !batchMode && h('button', {
               class: 'suggest-btn', disabled: loadingActions === task.id,
               onClick: () => handleSuggest(task.id),
             }, loadingActions === task.id
@@ -1132,6 +1186,16 @@ function App() {
     toast && h('div', { class: 'toast' },
       h('span', null, toast.message),
       h('button', { class: 'toast-undo', onClick: () => { toast.onUndo(); clearTimeout(toastTimer.current) } }, T.undoBtn)
+    ),
+
+    // Batch action bar
+    batchMode && h('div', { class: 'batch-bar' },
+      h('span', { class: 'batch-count' }, T.batchSelected(selectedIds.size)),
+      h('button', { class: 'btn-ghost', onClick: batchSelectAll }, T.batchSelectAll),
+      h('button', { class: 'btn-primary', disabled: selectedIds.size === 0, onClick: batchComplete },
+        T.batchComplete(selectedIds.size)),
+      h('button', { class: 'btn-ghost danger', disabled: selectedIds.size === 0, onClick: batchDelete },
+        T.batchDelete(selectedIds.size))
     )
   )
 }
