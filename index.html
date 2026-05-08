@@ -302,6 +302,30 @@
     .onboarding-skip{background:none;border:none;font-size:.82rem;color:var(--muted);
       cursor:pointer;font-family:inherit;padding:4px 8px;border-radius:6px}
     .onboarding-skip:hover{color:var(--text);background:var(--border)}
+    /* Statistics view */
+    .stats-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);
+      display:flex;align-items:flex-end;justify-content:center;z-index:200;padding:0}
+    .stats-sheet{background:var(--surface);border-radius:20px 20px 0 0;
+      max-width:780px;width:100%;max-height:90vh;overflow-y:auto;
+      padding:24px 20px calc(24px + env(safe-area-inset-bottom));
+      animation:slideUp .25s ease}
+    .stats-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+    .stats-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:24px}
+    .stat-card{background:var(--bg);border-radius:12px;padding:12px 8px;text-align:center}
+    .stat-num{font-size:1.5rem;font-weight:700}
+    .stat-label{font-size:.7rem;color:var(--muted);margin-top:3px}
+    .chart-section{margin-bottom:22px}
+    .chart-title{font-size:.88rem;font-weight:600;margin-bottom:10px}
+    .bar-chart{display:flex;flex-direction:column;gap:5px}
+    .bar-row{display:flex;align-items:center;gap:8px}
+    .bar-label{font-size:.72rem;color:var(--muted);width:44px;text-align:right;flex-shrink:0}
+    .bar-track{flex:1;background:var(--border);border-radius:4px;height:16px;overflow:hidden}
+    .bar-fill{height:100%;border-radius:4px;transition:width .5s ease}
+    .bar-count{font-size:.72rem;color:var(--muted);min-width:18px}
+    .cat-row{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+    .cat-name{font-size:.82rem;font-weight:500;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .cat-bar-track{width:100px;background:var(--border);border-radius:4px;height:12px;overflow:hidden;flex-shrink:0}
+    .cat-done{font-size:.72rem;color:var(--success);width:30px;text-align:right;flex-shrink:0}
   </style>
 </head>
 <body>
@@ -492,6 +516,16 @@ const TRANSLATIONS = {
     batchSelectAll: 'すべて選択',
     batchComplete: n => `${n}件を完了`,
     batchDelete: n => `${n}件を削除`,
+    statsBtn: '📊 統計',
+    statsTitle: '統計',
+    statsTotalTasks: '合計',
+    statsActive: '進行中',
+    statsDone: '完了済み',
+    statsCategories: 'カテゴリ',
+    statsCompletionRate: '完了率',
+    statsDailyTitle: '直近7日の完了タスク',
+    statsCategoryTitle: 'カテゴリ別タスク数',
+    statsNoData: '完了データがまだありません',
     onboarding: {
       title: 'ブレインダンプへようこそ',
       desc: '頭の中のアイデアやタスクを素早くキャプチャ。AIが自動で整理・分類してくれます。',
@@ -571,6 +605,16 @@ const TRANSLATIONS = {
     batchSelectAll: 'Select all',
     batchComplete: n => `Complete ${n}`,
     batchDelete: n => `Delete ${n}`,
+    statsBtn: '📊 Stats',
+    statsTitle: 'Statistics',
+    statsTotalTasks: 'Total',
+    statsActive: 'Active',
+    statsDone: 'Done',
+    statsCategories: 'Categories',
+    statsCompletionRate: 'Completion rate',
+    statsDailyTitle: 'Completions — last 7 days',
+    statsCategoryTitle: 'Tasks by category',
+    statsNoData: 'No completion data yet',
     onboarding: {
       title: 'Welcome to Brain Dump',
       desc: 'Quickly capture ideas and tasks from your mind. AI automatically organizes everything for you.',
@@ -672,6 +716,101 @@ function Onboarding({ lang, onGetStarted, onSkip, onToggleLang }) {
   )
 }
 
+// ─── StatsView ────────────────────────────────────────────────
+function StatsView({ data, T, onClose }) {
+  const tasks = data.tasks
+  const cats = data.categories
+  const totalTasks = tasks.length
+  const activeTasks = tasks.filter(t => t.status === 'active').length
+  const doneTasks = tasks.filter(t => t.status === 'done').length
+  const catCount = cats.length
+  const completionRate = totalTasks > 0 ? Math.round(doneTasks / totalTasks * 100) : 0
+
+  const today = new Date()
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(today)
+    d.setDate(d.getDate() - (6 - i))
+    return d.toISOString().slice(0, 10)
+  })
+  const completionsByDay = days.map(day => ({
+    day,
+    count: tasks.filter(t => t.completedAt && t.completedAt.slice(0, 10) === day).length,
+  }))
+  const maxDay = Math.max(...completionsByDay.map(d => d.count), 1)
+
+  const catData = cats.map(cat => {
+    const catTasks = tasks.filter(t => t.category === cat)
+    return { cat, total: catTasks.length, done: catTasks.filter(t => t.status === 'done').length, color: catColor(cat, cats) }
+  }).sort((a, b) => b.total - a.total)
+  const maxCat = Math.max(...catData.map(c => c.total), 1)
+
+  return h('div', {
+    class: 'stats-overlay',
+    onClick: e => { if (e.target === e.currentTarget) onClose() },
+  },
+    h('div', { class: 'stats-sheet' },
+      h('div', { class: 'stats-header' },
+        h('h2', { style: 'font-size:1.15rem;font-weight:700' }, T.statsTitle),
+        h('button', { class: 'close-btn', onClick: onClose, style: 'font-size:1.2rem;padding:4px 8px' }, '✕')
+      ),
+      h('div', { class: 'stats-summary' },
+        h('div', { class: 'stat-card' },
+          h('div', { class: 'stat-num', style: 'color:var(--text)' }, totalTasks),
+          h('div', { class: 'stat-label' }, T.statsTotalTasks)
+        ),
+        h('div', { class: 'stat-card' },
+          h('div', { class: 'stat-num', style: 'color:#ff9500' }, activeTasks),
+          h('div', { class: 'stat-label' }, T.statsActive)
+        ),
+        h('div', { class: 'stat-card' },
+          h('div', { class: 'stat-num', style: 'color:var(--success)' }, doneTasks),
+          h('div', { class: 'stat-label' }, T.statsDone)
+        ),
+        h('div', { class: 'stat-card' },
+          h('div', { class: 'stat-num', style: 'color:var(--primary)' }, catCount),
+          h('div', { class: 'stat-label' }, T.statsCategories)
+        ),
+      ),
+      totalTasks > 0 && h('div', { class: 'chart-section' },
+        h('div', { class: 'chart-title' }, `${T.statsCompletionRate} — ${completionRate}%`),
+        h('div', { class: 'bar-track', style: 'height:20px;border-radius:8px' },
+          h('div', { class: 'bar-fill', style: `width:${completionRate}%;background:var(--success)` })
+        )
+      ),
+      h('div', { class: 'chart-section' },
+        h('div', { class: 'chart-title' }, T.statsDailyTitle),
+        completionsByDay.every(d => d.count === 0)
+          ? h('p', { style: 'font-size:.85rem;color:var(--muted);padding:8px 0' }, T.statsNoData)
+          : h('div', { class: 'bar-chart' },
+              completionsByDay.map(({ day, count }) => {
+                const label = new Date(day + 'T12:00:00').toLocaleDateString(T.locale, { month: 'numeric', day: 'numeric' })
+                return h('div', { key: day, class: 'bar-row' },
+                  h('span', { class: 'bar-label' }, label),
+                  h('div', { class: 'bar-track' },
+                    h('div', { class: 'bar-fill', style: `width:${count / maxDay * 100}%;background:var(--primary)` })
+                  ),
+                  h('span', { class: 'bar-count' }, count > 0 ? count : '')
+                )
+              })
+            )
+      ),
+      catData.length > 0 && h('div', { class: 'chart-section' },
+        h('div', { class: 'chart-title' }, T.statsCategoryTitle),
+        catData.map(({ cat, total, done, color }) =>
+          h('div', { key: cat, class: 'cat-row' },
+            h('span', { class: 'cat-name', style: `color:${color}` }, cat),
+            h('div', { class: 'cat-bar-track' },
+              h('div', { class: 'bar-fill', style: `width:${total / maxCat * 100}%;background:${color}` })
+            ),
+            h('span', { style: 'font-size:.78rem;color:var(--muted);min-width:20px;text-align:right' }, total),
+            done > 0 && h('span', { class: 'cat-done' }, `✓${done}`)
+          )
+        )
+      )
+    )
+  )
+}
+
 // ─── App ──────────────────────────────────────────────────────────
 function App() {
   const [data, setData] = useState(load)
@@ -695,6 +834,7 @@ function App() {
   const [expandedNotes, setExpandedNotes] = useState(new Set())
   const [batchMode, setBatchMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState(new Set())
+  const [showStats, setShowStats] = useState(false)
   const toastTimer = useRef(null)
 
   const lang = data.lang || 'ja'
@@ -807,7 +947,10 @@ function App() {
 
   const toggleDone = id => persist({
     ...data,
-    tasks: data.tasks.map(t => t.id === id ? {...t, status: t.status === 'done' ? 'active' : 'done'} : t)
+    tasks: data.tasks.map(t => t.id === id
+      ? { ...t, status: t.status === 'done' ? 'active' : 'done',
+          completedAt: t.status === 'done' ? null : new Date().toISOString() }
+      : t)
   })
 
   const deleteTask = id => {
@@ -965,6 +1108,7 @@ function App() {
           ),
           data.tasks.length > 0 && h('button', { class: 'btn-ghost', onClick: toggleBatchMode },
             batchMode ? T.batchCancel : T.batchSelect),
+          !batchMode && data.tasks.length > 0 && h('button', { class: 'btn-ghost', onClick: () => setShowStats(s => !s) }, T.statsBtn),
           !batchMode && h('button', { class: 'btn-ghost', onClick: () => setShowSettings(s => !s) }, T.settings)
         )
       ),
@@ -1181,6 +1325,8 @@ function App() {
         })
       )
     ),
+
+    showStats && h(StatsView, { data, T, onClose: () => setShowStats(false) }),
 
     // Toast
     toast && h('div', { class: 'toast' },
