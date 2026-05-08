@@ -1,6 +1,5 @@
-# Done
-started_at: 2026-05-07T00:00:00Z
-feature: Batch select (checkbox mode, bulk complete/delete)
-step: 5 - done
-status: done
-completed_at: 2026-05-07T00:30:00Z
+# In Progress
+started_at: 2026-05-08T00:00:00Z
+feature: Statistics view (tasks done per day, category breakdown)
+step: 1 - fetching current index.html
+status: in_progress
