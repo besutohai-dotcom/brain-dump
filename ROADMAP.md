@@ -1,7 +1,7 @@
 # ブレインダンプ — Autonomous Improvement Roadmap
 
 Managed by an autonomous Claude agent. Updated after each improvement cycle.
-Last updated: 2026-05-07
+Last updated: 2026-05-08
 
 ## Done
 - [x] Core app: brain dump input to AI categorization to task list
@@ -28,7 +28,7 @@ Last updated: 2026-05-07
 
 ## Planned (priority order)
 - [x] Batch select -- checkbox mode, bulk complete/delete
-- [ ] Statistics view -- tasks done per day, category breakdown
+- [x] Statistics view -- tasks done per day, category breakdown
 - [ ] Browser push notifications -- remind about active tasks
 - [ ] Recurring tasks -- daily/weekly repeat option
 - [ ] Markdown in notes -- render bold, italic, checklists
@@ -47,6 +47,7 @@ Last updated: 2026-05-07
 | 2026-05-05 | Better onboarding overlay | Deployed | OK |
 | 2026-05-06 | Task notes (expandable sub-notes) | Deployed | OK |
 | 2026-05-07 | Batch select (checkbox mode, bulk complete/delete) | Deployed | OK |
+| 2026-05-08 | Statistics view (tasks done per day, category breakdown) | Deployed | OK |
 
 ## User Ideas
 - Voice input for easier navigation (done)
@@ -63,6 +64,7 @@ Last updated: 2026-05-07
 - 2026-04-25: Data export (JSON / text)
 - 2026-05-04: Language toggle (Japanese / English) -- header toggle, full UI + AI prompts adapt
 - 2026-05-05: Better onboarding -- animated modal overlay for first-time users, 3-step feature tour, persists dismissal in localStorage
+- 2026-05-08: Statistics view -- 4-card summary (total/active/done/categories), completion rate bar, 7-day daily completions chart, category breakdown with colored bars; completedAt timestamp added to tasks
 - 2026-05-07: Batch select -- Select button, checkboxes per task, bulk complete/delete, select-all, bilingual
 - 2026-05-06: Task notes -- 📝 button per task, expandable textarea, auto-saved to localStorage, amber highlight when note exists
 
@@ -79,4 +81,13 @@ Last updated: 2026-05-07
 - Swipe gestures and per-task action buttons disabled in batch mode
 - Batch bar fixed at bottom: selected count, Select All, Complete N, Delete N
 - Delete triggers undo toast; no schema change (backward-compatible)
+- Bilingual: full Japanese/English UI strings
+
+## 2026-05-08 - Statistics View
+- Stats button in header (only visible when tasks exist, hidden in batch mode)
+- Bottom sheet overlay with 4 summary cards: total / active / done / categories
+- Completion rate bar (green progress bar showing % done)
+- Daily completions chart: last 7 days, CSS bar chart, driven by new completedAt timestamp
+- Category breakdown: color-coded horizontal bars sorted by task count, done count shown per category
+- completedAt field added to tasks on toggle-done (null on undo); fully backward-compatible
 - Bilingual: full Japanese/English UI strings
