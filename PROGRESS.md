@@ -1,6 +1,4 @@
-# Done
-started_at: 2026-05-08T00:00:00Z
-feature: Statistics view (tasks done per day, category breakdown)
-step: 5 - done
+# Progress
+feature: Browser push notifications
+completed_at: 2026-05-09T01:00:00Z
 status: done
-completed_at: 2026-05-08T01:00:00Z
