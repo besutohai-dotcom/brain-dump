@@ -1,7 +1,7 @@
-# ブレインダンプ — Autonomous Improvement Roadmap
+# Brain Dump Roadmap
 
 Managed by an autonomous Claude agent. Updated after each improvement cycle.
-Last updated: 2026-05-08
+Last updated: 2026-05-09
 
 ## Done
 - [x] Core app: brain dump input to AI categorization to task list
@@ -25,11 +25,11 @@ Last updated: 2026-05-08
 - [x] Language toggle -- Japanese / English switch
 - [x] Better onboarding -- guided first-use flow with animated modal overlay
 - [x] Task notes -- expandable sub-notes field per task
-
-## Planned (priority order)
 - [x] Batch select -- checkbox mode, bulk complete/delete
 - [x] Statistics view -- tasks done per day, category breakdown
-- [ ] Browser push notifications -- remind about active tasks
+- [x] Browser push notifications -- remind about due tasks (while app is open)
+
+## Planned (priority order)
 - [ ] Recurring tasks -- daily/weekly repeat option
 - [ ] Markdown in notes -- render bold, italic, checklists
 - [ ] Multiple boards -- switch between different brain-dump contexts
@@ -48,6 +48,7 @@ Last updated: 2026-05-08
 | 2026-05-06 | Task notes (expandable sub-notes) | Deployed | OK |
 | 2026-05-07 | Batch select (checkbox mode, bulk complete/delete) | Deployed | OK |
 | 2026-05-08 | Statistics view (tasks done per day, category breakdown) | Deployed | OK |
+| 2026-05-09 | Browser push notifications (due-task reminders) | Deployed | OK |
 
 ## User Ideas
 - Voice input for easier navigation (done)
@@ -66,14 +67,15 @@ Last updated: 2026-05-08
 - 2026-05-05: Better onboarding -- animated modal overlay for first-time users, 3-step feature tour, persists dismissal in localStorage
 - 2026-05-08: Statistics view -- 4-card summary (total/active/done/categories), completion rate bar, 7-day daily completions chart, category breakdown with colored bars; completedAt timestamp added to tasks
 - 2026-05-07: Batch select -- Select button, checkboxes per task, bulk complete/delete, select-all, bilingual
-- 2026-05-06: Task notes -- 📝 button per task, expandable textarea, auto-saved to localStorage, amber highlight when note exists
+- 2026-05-06: Task notes -- button per task, expandable textarea, auto-saved to localStorage, amber highlight when note exists
+- 2026-05-09: Browser push notifications -- toggle in Settings, Notifications API, checks every 5 min for due/overdue tasks, deduplicates across sessions, bilingual
 
 ## 2026-05-06 - Task Notes (Expandable Sub-Notes)
-- 📝 button added to every task card; amber color when a note exists
+- Button added to every task card; amber color when a note exists
 - Clicking the button toggles an expandable textarea below the task
 - Notes are auto-saved to localStorage on every keystroke (onInput)
 - Fully backward-compatible: existing tasks without notes field work unchanged
-- Bilingual: "メモを追加..." / "Add a note to this task..."
+- Bilingual: placeholder text in Japanese and English
 
 ## 2026-05-07 - Batch Select
 - Select button in header toggles batch mode (hides clear/export/settings while active)
@@ -91,3 +93,12 @@ Last updated: 2026-05-08
 - Category breakdown: color-coded horizontal bars sorted by task count, done count shown per category
 - completedAt field added to tasks on toggle-done (null on undo); fully backward-compatible
 - Bilingual: full Japanese/English UI strings
+
+## 2026-05-09 - Browser Push Notifications
+- Toggle switch in Settings panel to enable/disable notifications
+- Requests Notification API permission on first enable; gracefully handles denied/unsupported
+- Checks every 5 minutes (while app is open) for active tasks with dueDate <= today
+- Shows one browser notification per due/overdue task per day (deduplication via localStorage)
+- Old deduplication entries auto-cleared after 2 days
+- notificationsEnabled field added to localStorage schema (backward-compatible, default false)
+- Bilingual: full Japanese/English UI strings and notification messages
