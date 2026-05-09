@@ -1,5 +1,4 @@
-# In Progress
-started_at: 2026-05-09T00:00:00Z
+# Progress
 feature: Browser push notifications
-step: 4 - updating ROADMAP.md
-status: in_progress
+completed_at: 2026-05-09T01:00:00Z
+status: done
