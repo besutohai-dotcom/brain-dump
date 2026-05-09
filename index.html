@@ -326,6 +326,22 @@
     .cat-name{font-size:.82rem;font-weight:500;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     .cat-bar-track{width:100px;background:var(--border);border-radius:4px;height:12px;overflow:hidden;flex-shrink:0}
     .cat-done{font-size:.72rem;color:var(--success);width:30px;text-align:right;flex-shrink:0}
+    /* Notification toggle */
+    .notif-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-top:1px solid var(--border);margin-top:8px;gap:12px}
+    .notif-text{flex:1;min-width:0}
+    .notif-label{font-size:.88rem;color:var(--text);font-weight:500}
+    .notif-sublabel{font-size:.75rem;color:var(--muted);margin-top:2px;line-height:1.4}
+    .notif-status{font-size:.75rem;margin-top:4px}
+    .notif-denied{color:var(--danger)}
+    .notif-ok{color:var(--success)}
+    .toggle-wrap{flex-shrink:0}
+    .toggle{width:44px;height:26px;border-radius:13px;border:none;cursor:pointer;position:relative;transition:background .2s;display:block}
+    .toggle.on{background:var(--success)}
+    .toggle.off{background:var(--border)}
+    .toggle-knob{position:absolute;top:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+    .toggle.on .toggle-knob{left:21px}
+    .toggle.off .toggle-knob{left:3px}
+    .toggle:disabled{opacity:.5;cursor:not-allowed}
   </style>
 </head>
 <body>
@@ -425,9 +441,10 @@ async function queryTasks(apiKey, query, tasks, lang) {
 
 // ─── Storage ──────────────────────────────────────────────────────
 const KEY = 'brain-dump-v1'
+const DEFAULTS = {tasks:[],categories:[],apiKey:'',lang:'ja',onboarded:false,notificationsEnabled:false}
 const load = () => {
-  try { return JSON.parse(localStorage.getItem(KEY) || 'null') || {tasks:[],categories:[],apiKey:'',lang:'ja',onboarded:false} }
-  catch { return {tasks:[],categories:[],apiKey:'',lang:'ja',onboarded:false} }
+  try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) || 'null') } }
+  catch { return { ...DEFAULTS } }
 }
 
 // ─── Colors ───────────────────────────────────────────────────────
@@ -526,6 +543,16 @@ const TRANSLATIONS = {
     statsDailyTitle: '直近7日の完了タスク',
     statsCategoryTitle: 'カテゴリ別タスク数',
     statsNoData: '完了データがまだありません',
+    notifSectionTitle: '🔔 リマインダー通知',
+    notifDesc: '期限のタスクをブラウザ通知でお知らせします（アプリを開いている間）',
+    notifEnable: '通知を有効にする',
+    notifDisable: '通知を無効にする',
+    notifDenied: '通知がブロックされています。ブラウザ設定から許可してください。',
+    notifGranted: '✓ 通知が有効です',
+    notifUnsupported: '※ このブラウザは通知をサポートしていません',
+    notifTaskTitle: () => '📌 タスクのリマインダー',
+    notifTaskBody: t => `${t.title}（${t.category}）の期限です`,
+    notifOverdueBody: t => `${t.title}（${t.category}）の期限が過ぎています`,
     onboarding: {
       title: 'ブレインダンプへようこそ',
       desc: '頭の中のアイデアやタスクを素早くキャプチャ。AIが自動で整理・分類してくれます。',
@@ -615,6 +642,16 @@ const TRANSLATIONS = {
     statsDailyTitle: 'Completions — last 7 days',
     statsCategoryTitle: 'Tasks by category',
     statsNoData: 'No completion data yet',
+    notifSectionTitle: '🔔 Reminders',
+    notifDesc: 'Get browser notifications for due tasks (while the app is open)',
+    notifEnable: 'Enable notifications',
+    notifDisable: 'Disable notifications',
+    notifDenied: 'Notifications are blocked. Please allow them in browser settings.',
+    notifGranted: '✓ Notifications are enabled',
+    notifUnsupported: '※ This browser does not support notifications',
+    notifTaskTitle: () => '📌 Task Reminder',
+    notifTaskBody: t => `${t.title} (${t.category}) is due today`,
+    notifOverdueBody: t => `${t.title} (${t.category}) is overdue`,
     onboarding: {
       title: 'Welcome to Brain Dump',
       desc: 'Quickly capture ideas and tasks from your mind. AI automatically organizes everything for you.',
@@ -628,6 +665,48 @@ const TRANSLATIONS = {
       langToggle: 'JP',
     },
   },
+}
+
+// ─── Notifications ────────────────────────────────────────────────
+const NOTIF_STORE = 'brain-dump-notified-v1'
+
+function loadNotifiedSet() {
+  try {
+    const raw = localStorage.getItem(NOTIF_STORE)
+    if (!raw) return {}
+    const obj = JSON.parse(raw)
+    const cutoff = new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10)
+    const out = {}
+    Object.keys(obj).forEach(k => {
+      const parts = k.split(':')
+      if (parts.length === 2 && parts[1] >= cutoff) out[k] = true
+    })
+    return out
+  } catch { return {} }
+}
+
+function saveNotifiedSet(obj) {
+  try { localStorage.setItem(NOTIF_STORE, JSON.stringify(obj)) } catch {}
+}
+
+function checkAndNotify(tasks, T) {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return
+  const today = new Date().toISOString().slice(0, 10)
+  const notified = loadNotifiedSet()
+  let changed = false
+  for (const task of tasks) {
+    if (task.status === 'done' || !task.dueDate) continue
+    if (task.dueDate > today) continue
+    const key = `${task.id}:${today}`
+    if (notified[key]) continue
+    const isOverdue = task.dueDate < today
+    const title = T.notifTaskTitle(task)
+    const body = isOverdue ? T.notifOverdueBody(task) : T.notifTaskBody(task)
+    try { new Notification(title, { body, tag: task.id }) } catch {}
+    notified[key] = true
+    changed = true
+  }
+  if (changed) saveNotifiedSet(notified)
 }
 
 // ─── SwipeCard ────────────────────────────────────────────────────
@@ -835,6 +914,9 @@ function App() {
   const [batchMode, setBatchMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState(new Set())
   const [showStats, setShowStats] = useState(false)
+  const [notifPermission, setNotifPermission] = useState(() =>
+    'Notification' in window ? Notification.permission : 'unsupported'
+  )
   const toastTimer = useRef(null)
 
   const lang = data.lang || 'ja'
@@ -872,6 +954,15 @@ function App() {
     el.addEventListener('vs', handler)
     return () => el.removeEventListener('vs', handler)
   }, [data])
+
+  useEffect(() => {
+    if (!data.notificationsEnabled) return
+    if (!('Notification' in window) || Notification.permission !== 'granted') return
+    const run = () => checkAndNotify(data.tasks, T)
+    run()
+    const id = setInterval(run, 5 * 60 * 1000)
+    return () => clearInterval(id)
+  }, [data.notificationsEnabled, data.tasks, lang])
 
   const showToast = useCallback((message, onUndo) => {
     clearTimeout(toastTimer.current)
@@ -1001,6 +1092,25 @@ function App() {
 
   const toggleBatchMode = () => { setBatchMode(m => !m); setSelectedIds(new Set()) }
 
+  const requestNotifPermission = async () => {
+    if (!('Notification' in window)) return
+    const perm = await Notification.requestPermission()
+    setNotifPermission(perm)
+    if (perm === 'granted') persist({ ...data, notificationsEnabled: true })
+  }
+
+  const toggleNotifications = () => {
+    if (data.notificationsEnabled) {
+      persist({ ...data, notificationsEnabled: false })
+    } else {
+      if (notifPermission === 'granted') {
+        persist({ ...data, notificationsEnabled: true })
+      } else {
+        requestNotifPermission()
+      }
+    }
+  }
+
   const toggleSelectTask = id => setSelectedIds(prev => {
     const next = new Set(prev)
     next.has(id) ? next.delete(id) : next.add(id)
@@ -1128,6 +1238,22 @@ function App() {
           h('button', { class: 'btn-primary', onClick: saveApiKey }, T.save)
         ),
         h('p', { class: 'hint' }, T.apiKeyHint),
+        h('div', { class: 'notif-row' },
+          h('div', { class: 'notif-text' },
+            h('div', { class: 'notif-label' }, T.notifSectionTitle),
+            h('div', { class: 'notif-sublabel' }, T.notifDesc),
+            notifPermission === 'denied' && h('div', { class: 'notif-status notif-denied' }, T.notifDenied),
+            notifPermission === 'unsupported' && h('div', { class: 'notif-status notif-denied' }, T.notifUnsupported),
+            notifPermission === 'granted' && data.notificationsEnabled && h('div', { class: 'notif-status notif-ok' }, T.notifGranted),
+          ),
+          notifPermission !== 'denied' && notifPermission !== 'unsupported' && h('div', { class: 'toggle-wrap' },
+            h('button', {
+              class: `toggle ${data.notificationsEnabled ? 'on' : 'off'}`,
+              onClick: toggleNotifications,
+              title: data.notificationsEnabled ? T.notifDisable : T.notifEnable,
+            }, h('div', { class: 'toggle-knob' }))
+          )
+        ),
         data.apiKey && h('button', { class: 'btn-ghost', style: 'margin-top:8px', onClick: () => setShowSettings(false) }, T.cancel)
       ),
 
