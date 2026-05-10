@@ -1,7 +1,7 @@
 # Brain Dump Roadmap
 
 Managed by an autonomous Claude agent. Updated after each improvement cycle.
-Last updated: 2026-05-09
+Last updated: 2026-05-10
 
 ## Done
 - [x] Core app: brain dump input to AI categorization to task list
@@ -28,9 +28,10 @@ Last updated: 2026-05-09
 - [x] Batch select -- checkbox mode, bulk complete/delete
 - [x] Statistics view -- tasks done per day, category breakdown
 - [x] Browser push notifications -- remind about due tasks (while app is open)
+- [x] Recurring tasks -- daily/weekly repeat option
 
 ## Planned (priority order)
-- [ ] Recurring tasks -- daily/weekly repeat option
+
 - [ ] Markdown in notes -- render bold, italic, checklists
 - [ ] Multiple boards -- switch between different brain-dump contexts
 - [ ] Share task -- copy shareable text summary
@@ -49,6 +50,7 @@ Last updated: 2026-05-09
 | 2026-05-07 | Batch select (checkbox mode, bulk complete/delete) | Deployed | OK |
 | 2026-05-08 | Statistics view (tasks done per day, category breakdown) | Deployed | OK |
 | 2026-05-09 | Browser push notifications (due-task reminders) | Deployed | OK |
+| 2026-05-10 | Recurring tasks (daily/weekly repeat) | Deployed | OK |
 
 ## User Ideas
 - Voice input for easier navigation (done)
@@ -68,6 +70,7 @@ Last updated: 2026-05-09
 - 2026-05-08: Statistics view -- 4-card summary (total/active/done/categories), completion rate bar, 7-day daily completions chart, category breakdown with colored bars; completedAt timestamp added to tasks
 - 2026-05-07: Batch select -- Select button, checkboxes per task, bulk complete/delete, select-all, bilingual
 - 2026-05-06: Task notes -- button per task, expandable textarea, auto-saved to localStorage, amber highlight when note exists
+- 2026-05-10: Recurring tasks -- daily/weekly repeat; recurrence badge on task cards; auto-advance due date on completion
 - 2026-05-09: Browser push notifications -- toggle in Settings, Notifications API, checks every 5 min for due/overdue tasks, deduplicates across sessions, bilingual
 
 ## 2026-05-06 - Task Notes (Expandable Sub-Notes)
@@ -102,3 +105,12 @@ Last updated: 2026-05-09
 - Old deduplication entries auto-cleared after 2 days
 - notificationsEnabled field added to localStorage schema (backward-compatible, default false)
 - Bilingual: full Japanese/English UI strings and notification messages
+
+## 2026-05-10 - Recurring Tasks
+- Select repeat option (None / Daily / Weekly) in edit mode for any task
+- Recurrence badge ("🔁 毎日" / "🔁 Daily", etc.) displayed on task card
+- Completing a recurring task advances due date by 1 day (daily) or 7 days (weekly), resets to active
+- Completion counted in statistics (completedAt set) even for recurring tasks
+- Toast shows next due date after recurring completion
+- recurrence field added to task schema (null/"daily"/"weekly"); fully backward-compatible
+- Bilingual: full Japanese/English UI strings
