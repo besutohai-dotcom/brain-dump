@@ -342,6 +342,17 @@
     .toggle.on .toggle-knob{left:21px}
     .toggle.off .toggle-knob{left:3px}
     .toggle:disabled{opacity:.5;cursor:not-allowed}
+    /* Recurrence badge */
+    .recur-badge{font-size:.72rem;font-weight:600;padding:2px 8px;border-radius:10px;
+      border:1px solid;letter-spacing:.01em;display:inline-flex;align-items:center;gap:3px;
+      color:var(--primary);border-color:var(--primary)55;background:var(--primary)18}
+    /* Edit recurrence row */
+    .edit-recur-row{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+    .edit-recur-label{font-size:.82rem;color:var(--muted);white-space:nowrap}
+    .edit-recur-select{padding:6px 10px;border:1px solid var(--border);border-radius:8px;
+      font-family:inherit;font-size:.85rem;outline:none;background:var(--surface);
+      color:var(--text);cursor:pointer}
+    .edit-recur-select:focus{border-color:var(--primary)}
   </style>
 </head>
 <body>
@@ -553,6 +564,12 @@ const TRANSLATIONS = {
     notifTaskTitle: () => '📌 タスクのリマインダー',
     notifTaskBody: t => `${t.title}（${t.category}）の期限です`,
     notifOverdueBody: t => `${t.title}（${t.category}）の期限が過ぎています`,
+    recurLabel: '🔁 繰り返し',
+    recurNone: 'なし',
+    recurDaily: '毎日',
+    recurWeekly: '毎週',
+    recurBadge: r => r === 'daily' ? '🔁 毎日' : '🔁 毎週',
+    recurCompleted: date => `完了 → 次回: ${date}`,
     onboarding: {
       title: 'ブレインダンプへようこそ',
       desc: '頭の中のアイデアやタスクを素早くキャプチャ。AIが自動で整理・分類してくれます。',
@@ -652,6 +669,12 @@ const TRANSLATIONS = {
     notifTaskTitle: () => '📌 Task Reminder',
     notifTaskBody: t => `${t.title} (${t.category}) is due today`,
     notifOverdueBody: t => `${t.title} (${t.category}) is overdue`,
+    recurLabel: '🔁 Repeat',
+    recurNone: 'None',
+    recurDaily: 'Daily',
+    recurWeekly: 'Weekly',
+    recurBadge: r => r === 'daily' ? '🔁 Daily' : '🔁 Weekly',
+    recurCompleted: date => `Done → Next: ${date}`,
     onboarding: {
       title: 'Welcome to Brain Dump',
       desc: 'Quickly capture ideas and tasks from your mind. AI automatically organizes everything for you.',
@@ -907,6 +930,7 @@ function App() {
   const [editTitle, setEditTitle] = useState('')
   const [editOriginal, setEditOriginal] = useState('')
   const [editDueDate, setEditDueDate] = useState('')
+  const [editRecurrence, setEditRecurrence] = useState('')
   const [searchText, setSearchText] = useState('')
   const [toast, setToast] = useState(null)
   const [showExportMenu, setShowExportMenu] = useState(false)
@@ -1036,13 +1060,30 @@ function App() {
     finally { setLoadingActions(null) }
   }
 
-  const toggleDone = id => persist({
-    ...data,
-    tasks: data.tasks.map(t => t.id === id
-      ? { ...t, status: t.status === 'done' ? 'active' : 'done',
-          completedAt: t.status === 'done' ? null : new Date().toISOString() }
-      : t)
-  })
+  const toggleDone = id => {
+    const task = data.tasks.find(t => t.id === id)
+    if (!task) return
+    if (task.recurrence && task.status === 'active') {
+      const today = new Date().toISOString().slice(0, 10)
+      const base = task.dueDate && task.dueDate >= today ? task.dueDate : today
+      const bd = new Date(base + 'T12:00:00')
+      if (task.recurrence === 'daily') bd.setDate(bd.getDate() + 1)
+      else bd.setDate(bd.getDate() + 7)
+      const nextDue = bd.toISOString().slice(0, 10)
+      persist({ ...data, tasks: data.tasks.map(t => t.id === id
+        ? { ...t, status: 'active', completedAt: new Date().toISOString(), dueDate: nextDue }
+        : t) })
+      showToast(T.recurCompleted(nextDue), null)
+      return
+    }
+    persist({
+      ...data,
+      tasks: data.tasks.map(t => t.id === id
+        ? { ...t, status: t.status === 'done' ? 'active' : 'done',
+            completedAt: t.status === 'done' ? null : new Date().toISOString() }
+        : t)
+    })
+  }
 
   const deleteTask = id => {
     const task = data.tasks.find(t => t.id === id)
@@ -1059,6 +1100,7 @@ function App() {
     setEditTitle(task.title)
     setEditOriginal(task.originalText)
     setEditDueDate(task.dueDate || '')
+    setEditRecurrence(task.recurrence || '')
   }
 
   const saveEdit = () => {
@@ -1066,7 +1108,8 @@ function App() {
     persist({
       ...data,
       tasks: data.tasks.map(t => t.id === editingId
-        ? {...t, title: editTitle.trim(), originalText: editOriginal.trim() || t.originalText, dueDate: editDueDate || null}
+        ? {...t, title: editTitle.trim(), originalText: editOriginal.trim() || t.originalText,
+           dueDate: editDueDate || null, recurrence: editRecurrence || null}
         : t)
     })
     setEditingId(null)
@@ -1375,6 +1418,7 @@ function App() {
                   style: `color:${pColor};border-color:${pColor}55;background:${pColor}18`,
                   onClick: () => togglePriority(task.id), title: T.priorityTitle }, pLabel),
                 dueDateInfo && h('span', { class: `due-badge ${dueDateInfo.cls}` }, dueDateInfo.label),
+                task.recurrence && h('span', { class: 'recur-badge' }, T.recurBadge(task.recurrence)),
                 h('span', { class: 'task-date' }, new Date(task.createdAt).toLocaleDateString(T.locale, {month:'numeric',day:'numeric'}))
               ),
               !batchMode && h('div', { class: 'task-btns' },
@@ -1418,6 +1462,17 @@ function App() {
                     }),
                     editDueDate && h('button', { class: 'btn-clear-date', onClick: () => setEditDueDate(''), title: T.clearDueDate }, T.clearDueDate)
                   ),
+                  h('div', { class: 'edit-recur-row' },
+                    h('span', { class: 'edit-recur-label' }, T.recurLabel),
+                    h('select', {
+                      class: 'edit-recur-select', value: editRecurrence,
+                      onChange: e => setEditRecurrence(e.target.value),
+                    },
+                      h('option', { value: '' }, T.recurNone),
+                      h('option', { value: 'daily' }, T.recurDaily),
+                      h('option', { value: 'weekly' }, T.recurWeekly)
+                    )
+                  ),
                   h('div', { class: 'edit-actions' },
                     h('button', { class: 'btn-save', onClick: saveEdit }, T.save),
                     h('button', { class: 'btn-cancel', onClick: cancelEdit }, T.cancel)
@@ -1457,7 +1512,7 @@ function App() {
     // Toast
     toast && h('div', { class: 'toast' },
       h('span', null, toast.message),
-      h('button', { class: 'toast-undo', onClick: () => { toast.onUndo(); clearTimeout(toastTimer.current) } }, T.undoBtn)
+      toast.onUndo && h('button', { class: 'toast-undo', onClick: () => { toast.onUndo(); clearTimeout(toastTimer.current) } }, T.undoBtn)
     ),
 
     // Batch action bar
