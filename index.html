@@ -237,6 +237,25 @@
       line-height:1.55;transition:border-color .15s}
     .notes-textarea:focus{border-color:var(--primary)}
     .icon-note.has-note{color:#ff9500!important;border-color:#ff950055!important;background:#ff950018!important}
+    /* Markdown notes preview */
+    .notes-mode-toggle{display:flex;gap:4px;margin-bottom:6px}
+    .notes-mode-btn{padding:3px 10px;font-size:.78rem;border:1px solid var(--border);border-radius:6px;
+      background:var(--surface);color:var(--muted);cursor:pointer;transition:all .15s}
+    .notes-mode-btn.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+    .notes-preview{padding:8px 10px;border:1px solid var(--border);border-radius:8px;
+      background:var(--surface);min-height:48px;font-size:.855rem;line-height:1.6;color:var(--text)}
+    .notes-preview p{margin:.3em 0}
+    .notes-preview ul,.notes-preview ol{margin:.3em 0 .3em 1.4em}
+    .notes-preview li{margin:.15em 0}
+    .notes-preview li.task-list-item{list-style:none;margin-left:-1.1em}
+    .notes-preview li.task-list-item input[type=checkbox]{margin-right:5px;accent-color:var(--primary);pointer-events:none}
+    .notes-preview strong{font-weight:600}
+    .notes-preview em{font-style:italic}
+    .notes-preview code{font-family:monospace;font-size:.85em;background:var(--border);padding:1px 4px;border-radius:3px}
+    .notes-preview h1,.notes-preview h2,.notes-preview h3{font-size:1em;font-weight:600;margin:.4em 0 .2em}
+    .notes-preview blockquote{border-left:3px solid var(--primary);margin:.3em 0;padding-left:.8em;color:var(--muted)}
+    .notes-preview a{color:var(--primary)}
+    .notes-preview-empty{color:var(--muted);font-size:.85rem;font-style:italic}
     /* Batch select */
     .batch-bar{position:fixed;bottom:0;left:0;right:0;background:var(--surface);
       border-top:1px solid var(--border);z-index:200;
@@ -360,6 +379,8 @@
 <script type="module">
 import { h, render, Fragment } from 'https://esm.sh/preact@10.24.3'
 import { useState, useEffect, useCallback, useRef } from 'https://esm.sh/preact@10.24.3/hooks'
+import { marked } from 'https://esm.sh/marked@9'
+marked.use({ gfm: true, breaks: true })
 
 // ─── Speech Recognition ───────────────────────────────────────────
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition
@@ -538,6 +559,9 @@ const TRANSLATIONS = {
     exportDuePrefix: '期限',
     notesBtnTitle: 'メモを表示',
     notesPlaceholder: 'タスクのメモを追加...',
+    notesEditMode: '編集',
+    notesPreviewMode: 'プレビュー',
+    notesEmpty: 'メモなし',
     batchSelect: '選択',
     batchCancel: 'キャンセル',
     batchSelected: n => `${n}件を選択中`,
@@ -643,6 +667,9 @@ const TRANSLATIONS = {
     exportDuePrefix: 'Due',
     notesBtnTitle: 'Show notes',
     notesPlaceholder: 'Add a note to this task...',
+    notesEditMode: 'Edit',
+    notesPreviewMode: 'Preview',
+    notesEmpty: 'No notes yet',
     batchSelect: 'Select',
     batchCancel: 'Cancel',
     batchSelected: n => `${n} selected`,
@@ -935,6 +962,7 @@ function App() {
   const [toast, setToast] = useState(null)
   const [showExportMenu, setShowExportMenu] = useState(false)
   const [expandedNotes, setExpandedNotes] = useState(new Set())
+  const [notesPreviewMode, setNotesPreviewMode] = useState(new Set())
   const [batchMode, setBatchMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState(new Set())
   const [showStats, setShowStats] = useState(false)
@@ -1120,6 +1148,12 @@ function App() {
   const toggleNotes = id => setExpandedNotes(prev => {
     const next = new Set(prev)
     next.has(id) ? next.delete(id) : next.add(id)
+    return next
+  })
+
+  const toggleNotesPreview = (id, on) => setNotesPreviewMode(prev => {
+    const next = new Set(prev)
+    on ? next.add(id) : next.delete(id)
     return next
   })
 
@@ -1484,12 +1518,31 @@ function App() {
                 ),
 
             !isEditing && expandedNotes.has(task.id) && h('div', { class: 'notes-section' },
-              h('textarea', {
-                class: 'notes-textarea',
-                placeholder: T.notesPlaceholder,
-                value: task.notes || '',
-                onInput: e => saveNote(task.id, e.target.value),
-              })
+              h('div', { class: 'notes-mode-toggle' },
+                h('button', {
+                  class: `notes-mode-btn ${!notesPreviewMode.has(task.id) ? 'active' : ''}`,
+                  onClick: () => toggleNotesPreview(task.id, false),
+                }, T.notesEditMode),
+                h('button', {
+                  class: `notes-mode-btn ${notesPreviewMode.has(task.id) ? 'active' : ''}`,
+                  onClick: () => toggleNotesPreview(task.id, true),
+                }, T.notesPreviewMode),
+              ),
+              notesPreviewMode.has(task.id)
+                ? h('div', {
+                    class: 'notes-preview',
+                    dangerouslySetInnerHTML: {
+                      __html: task.notes
+                        ? marked.parse(task.notes)
+                        : `<span class="notes-preview-empty">${T.notesEmpty}</span>`
+                    }
+                  })
+                : h('textarea', {
+                    class: 'notes-textarea',
+                    placeholder: T.notesPlaceholder,
+                    value: task.notes || '',
+                    onInput: e => saveNote(task.id, e.target.value),
+                  })
             ),
 
             task.nextActions.length > 0 && h('div', { class: 'actions-box', style: `border-left-color:${color}` },
