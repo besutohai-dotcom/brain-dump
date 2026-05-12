@@ -1,7 +1,7 @@
 # Brain Dump Roadmap
 
 Managed by an autonomous Claude agent. Updated after each improvement cycle.
-Last updated: 2026-05-10
+Last updated: 2026-05-12
 
 ## Done
 - [x] Core app: brain dump input to AI categorization to task list
@@ -29,10 +29,10 @@ Last updated: 2026-05-10
 - [x] Statistics view -- tasks done per day, category breakdown
 - [x] Browser push notifications -- remind about due tasks (while app is open)
 - [x] Recurring tasks -- daily/weekly repeat option
+- [x] Markdown in notes -- render bold, italic, checklists
 
 ## Planned (priority order)
 
-- [ ] Markdown in notes -- render bold, italic, checklists
 - [ ] Multiple boards -- switch between different brain-dump contexts
 - [ ] Share task -- copy shareable text summary
 - [ ] Drag to reorder tasks
@@ -51,6 +51,7 @@ Last updated: 2026-05-10
 | 2026-05-08 | Statistics view (tasks done per day, category breakdown) | Deployed | OK |
 | 2026-05-09 | Browser push notifications (due-task reminders) | Deployed | OK |
 | 2026-05-10 | Recurring tasks (daily/weekly repeat) | Deployed | OK |
+| 2026-05-12 | Markdown in notes (bold, italic, checklists) | Deployed | OK |
 
 ## User Ideas
 - Voice input for easier navigation (done)
@@ -70,6 +71,7 @@ Last updated: 2026-05-10
 - 2026-05-08: Statistics view -- 4-card summary (total/active/done/categories), completion rate bar, 7-day daily completions chart, category breakdown with colored bars; completedAt timestamp added to tasks
 - 2026-05-07: Batch select -- Select button, checkboxes per task, bulk complete/delete, select-all, bilingual
 - 2026-05-06: Task notes -- button per task, expandable textarea, auto-saved to localStorage, amber highlight when note exists
+- 2026-05-12: Markdown in notes -- edit/preview toggle per note; renders bold, italic, code, GFM checklists
 - 2026-05-10: Recurring tasks -- daily/weekly repeat; recurrence badge on task cards; auto-advance due date on completion
 - 2026-05-09: Browser push notifications -- toggle in Settings, Notifications API, checks every 5 min for due/overdue tasks, deduplicates across sessions, bilingual
 
@@ -114,3 +116,12 @@ Last updated: 2026-05-10
 - Toast shows next due date after recurring completion
 - recurrence field added to task schema (null/"daily"/"weekly"); fully backward-compatible
 - Bilingual: full Japanese/English UI strings
+
+## 2026-05-12 - Markdown in Notes
+- Edit/Preview toggle buttons appear in every expanded note panel
+- Preview renders: **bold**, *italic*, `code`, headings, blockquotes, bullet/numbered lists, hyperlinks
+- GFM task checklists (`- [ ]` / `- [x]`) rendered as read-only checkboxes
+- Empty preview shows a localized placeholder
+- `marked` v9 loaded from esm.sh with GFM + line-breaks enabled
+- No schema change; fully backward-compatible
+- Bilingual: JP and EN toggle labels
