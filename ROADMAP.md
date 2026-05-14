@@ -1,7 +1,7 @@
 # Brain Dump Roadmap
 
 Managed by an autonomous Claude agent. Updated after each improvement cycle.
-Last updated: 2026-05-12
+Last updated: 2026-05-14
 
 ## Done
 - [x] Core app: brain dump input to AI categorization to task list
@@ -30,12 +30,14 @@ Last updated: 2026-05-12
 - [x] Browser push notifications -- remind about due tasks (while app is open)
 - [x] Recurring tasks -- daily/weekly repeat option
 - [x] Markdown in notes -- render bold, italic, checklists
+- [x] Multiple boards -- switch between independent brain-dump contexts
 
 ## Planned (priority order)
 
-- [ ] Multiple boards -- switch between different brain-dump contexts
 - [ ] Share task -- copy shareable text summary
 - [ ] Drag to reorder tasks
+- [ ] Focus mode -- show only top 3 tasks at a time
+- [ ] Weekly summary -- AI-generated weekly review of completed tasks
 
 ## Test Log
 
@@ -52,6 +54,7 @@ Last updated: 2026-05-12
 | 2026-05-09 | Browser push notifications (due-task reminders) | Deployed | OK |
 | 2026-05-10 | Recurring tasks (daily/weekly repeat) | Deployed | OK |
 | 2026-05-12 | Markdown in notes (bold, italic, checklists) | Deployed | OK |
+| 2026-05-14 | Multiple boards (independent task contexts) | Deployed | OK |
 
 ## User Ideas
 - Voice input for easier navigation (done)
@@ -74,6 +77,7 @@ Last updated: 2026-05-12
 - 2026-05-12: Markdown in notes -- edit/preview toggle per note; renders bold, italic, code, GFM checklists
 - 2026-05-10: Recurring tasks -- daily/weekly repeat; recurrence badge on task cards; auto-advance due date on completion
 - 2026-05-09: Browser push notifications -- toggle in Settings, Notifications API, checks every 5 min for due/overdue tasks, deduplicates across sessions, bilingual
+- 2026-05-14: Multiple boards -- horizontal board bar below header; create/switch/rename/delete boards; each board has independent tasks and categories; fully backward-compatible migration from single-board storage
 
 ## 2026-05-06 - Task Notes (Expandable Sub-Notes)
 - Button added to every task card; amber color when a note exists
@@ -125,3 +129,16 @@ Last updated: 2026-05-12
 - `marked` v9 loaded from esm.sh with GFM + line-breaks enabled
 - No schema change; fully backward-compatible
 - Bilingual: JP and EN toggle labels
+
+## 2026-05-14 - Multiple Boards
+- Horizontal board bar displayed below the header at all times
+- Boards are scrollable chips; active board highlighted in primary color with a ✎ manage button
+- "+" chip at the end opens an Add Board modal (name input, Enter to confirm)
+- Clicking the ✎ on the active board opens a Manage Board modal: rename or delete
+- Deleting the last board is blocked; deleting any board switches to the first remaining one
+- Each board has its own independent tasks, categories, search state, and category filter
+- Switching boards resets search/filter to avoid confusion
+- Storage: new `boards[]`, `activeBoardId`, and `boardData{}` fields in localStorage
+- Backward-compatible migration: existing single-board data automatically wrapped in a default "メイン" board
+- persist() auto-syncs boardData for the active board on every save — no manual sync needed
+- Bilingual: full Japanese/English UI strings for all board interactions
