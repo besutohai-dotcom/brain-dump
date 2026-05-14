@@ -1,5 +1,5 @@
-# In Progress
-started_at: 2026-05-14T00:00:00Z
+# Progress
+
 feature: Multiple boards
-step: 3 - deploying index.html to GitHub
-status: in_progress
+completed_at: 2026-05-14T00:00:00Z
+status: done
