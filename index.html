@@ -372,6 +372,38 @@
       font-family:inherit;font-size:.85rem;outline:none;background:var(--surface);
       color:var(--text);cursor:pointer}
     .edit-recur-select:focus{border-color:var(--primary)}
+    /* Board bar */
+    .board-bar{display:flex;gap:6px;margin-bottom:16px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+    .board-bar::-webkit-scrollbar{display:none}
+    .board-chip{display:inline-flex;align-items:center;gap:4px;padding:5px 13px;
+      border-radius:20px;border:1px solid var(--border);background:var(--surface);
+      font-size:.82rem;font-family:inherit;cursor:pointer;color:var(--muted);
+      transition:all .15s;white-space:nowrap;flex-shrink:0}
+    .board-chip.active{background:var(--primary);border-color:var(--primary);color:#fff;font-weight:500}
+    .board-chip:hover:not(.active){background:var(--border);color:var(--text)}
+    .board-chip-manage{width:18px;height:18px;border-radius:50%;border:none;
+      background:rgba(255,255,255,.25);color:#fff;font-size:.65rem;cursor:pointer;
+      display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;
+      font-family:inherit;padding:0;line-height:1;margin-left:2px}
+    .board-chip-manage:hover{background:rgba(255,255,255,.4)}
+    .board-add-btn{padding:5px 11px;font-size:.9rem;color:var(--primary);
+      border-color:var(--primary);font-weight:700}
+    .board-add-btn:hover{background:var(--primary);color:#fff}
+    /* Board modal */
+    .board-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:350;
+      display:flex;align-items:center;justify-content:center;padding:16px;animation:fadeIn .15s ease}
+    .board-modal{background:var(--surface);border-radius:16px;padding:24px;
+      max-width:340px;width:100%;box-shadow:0 16px 48px rgba(0,0,0,.25);animation:slideUp .2s ease}
+    .board-modal h3{font-size:1rem;font-weight:600;margin-bottom:14px}
+    .board-modal-input{width:100%;padding:9px 12px;border:1px solid var(--border);
+      border-radius:8px;font-size:.9rem;font-family:inherit;outline:none;
+      background:var(--surface);color:var(--text);margin-bottom:12px}
+    .board-modal-input:focus{border-color:var(--primary)}
+    .board-modal-btns{display:flex;gap:8px;justify-content:flex-end}
+    .board-modal-del{margin-right:auto;background:none;border:1px solid var(--danger);
+      border-radius:8px;padding:7px 14px;font-size:.85rem;font-family:inherit;
+      color:var(--danger);cursor:pointer}
+    .board-modal-del:hover{background:#fff0ee}
   </style>
 </head>
 <body>
@@ -473,9 +505,18 @@ async function queryTasks(apiKey, query, tasks, lang) {
 
 // ─── Storage ──────────────────────────────────────────────────────
 const KEY = 'brain-dump-v1'
-const DEFAULTS = {tasks:[],categories:[],apiKey:'',lang:'ja',onboarded:false,notificationsEnabled:false}
+const DEFAULTS = {tasks:[],categories:[],apiKey:'',lang:'ja',onboarded:false,notificationsEnabled:false,boards:[],activeBoardId:null,boardData:{}}
 const load = () => {
-  try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) || 'null') } }
+  try {
+    const raw = { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) || 'null') }
+    if (!raw.boards || raw.boards.length === 0) {
+      const did = 'default'
+      raw.boards = [{ id: did, name: 'メイン' }]
+      raw.activeBoardId = did
+      raw.boardData = { [did]: { tasks: raw.tasks || [], categories: raw.categories || [] } }
+    }
+    return raw
+  }
   catch { return { ...DEFAULTS } }
 }
 
@@ -594,6 +635,15 @@ const TRANSLATIONS = {
     recurWeekly: '毎週',
     recurBadge: r => r === 'daily' ? '🔁 毎日' : '🔁 毎週',
     recurCompleted: date => `完了 → 次回: ${date}`,
+    defaultBoardName: 'メイン',
+    addBoardTitle: '新しいボード',
+    boardNamePlaceholder: 'ボード名...',
+    addBoardBtn: '追加',
+    manageBoardTitle: 'ボードの管理',
+    renameBoardLabel: '名前を変更',
+    renameBtn: '変更',
+    deleteBoardBtn: '削除',
+    deleteBoardConfirm: 'このボードとすべてのタスクを削除しますか？',
     onboarding: {
       title: 'ブレインダンプへようこそ',
       desc: '頭の中のアイデアやタスクを素早くキャプチャ。AIが自動で整理・分類してくれます。',
@@ -702,6 +752,15 @@ const TRANSLATIONS = {
     recurWeekly: 'Weekly',
     recurBadge: r => r === 'daily' ? '🔁 Daily' : '🔁 Weekly',
     recurCompleted: date => `Done → Next: ${date}`,
+    defaultBoardName: 'Main',
+    addBoardTitle: 'New Board',
+    boardNamePlaceholder: 'Board name...',
+    addBoardBtn: 'Add',
+    manageBoardTitle: 'Manage Board',
+    renameBoardLabel: 'Rename',
+    renameBtn: 'Rename',
+    deleteBoardBtn: 'Delete',
+    deleteBoardConfirm: 'Delete this board and all its tasks?',
     onboarding: {
       title: 'Welcome to Brain Dump',
       desc: 'Quickly capture ideas and tasks from your mind. AI automatically organizes everything for you.',
@@ -966,6 +1025,10 @@ function App() {
   const [batchMode, setBatchMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState(new Set())
   const [showStats, setShowStats] = useState(false)
+  const [showAddBoard, setShowAddBoard] = useState(false)
+  const [newBoardName, setNewBoardName] = useState('')
+  const [manageBoardId, setManageBoardId] = useState(null)
+  const [manageBoardName, setManageBoardName] = useState('')
   const [notifPermission, setNotifPermission] = useState(() =>
     'Notification' in window ? Notification.permission : 'unsupported'
   )
@@ -1023,11 +1086,55 @@ function App() {
   }, [])
 
   const persist = useCallback(next => {
+    if (next.activeBoardId && next.boardData) {
+      next = { ...next, boardData: { ...next.boardData, [next.activeBoardId]: { tasks: next.tasks, categories: next.categories } } }
+    }
     setData(next)
     localStorage.setItem(KEY, JSON.stringify(next))
   }, [])
 
   const toggleLang = () => persist({ ...data, lang: lang === 'ja' ? 'en' : 'ja' })
+
+  const switchBoard = id => {
+    if (id === data.activeBoardId) return
+    const updatedBoardData = { ...data.boardData, [data.activeBoardId]: { tasks: data.tasks, categories: data.categories } }
+    const bd = updatedBoardData[id] || { tasks: [], categories: [] }
+    persist({ ...data, tasks: bd.tasks, categories: bd.categories, activeBoardId: id, boardData: updatedBoardData })
+    setSelectedCat(null); setSearchText('')
+  }
+
+  const addBoard = () => {
+    const name = newBoardName.trim()
+    if (!name) return
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`
+    const updatedBoardData = { ...data.boardData, [data.activeBoardId]: { tasks: data.tasks, categories: data.categories }, [id]: { tasks: [], categories: [] } }
+    persist({ ...data, boards: [...data.boards, { id, name }], boardData: updatedBoardData, tasks: [], categories: [], activeBoardId: id })
+    setNewBoardName(''); setShowAddBoard(false); setSelectedCat(null); setSearchText('')
+  }
+
+  const openManageBoard = board => {
+    setManageBoardId(board.id)
+    setManageBoardName(board.name)
+  }
+
+  const saveRenameBoard = () => {
+    const name = manageBoardName.trim()
+    if (!name || !manageBoardId) return
+    persist({ ...data, boards: data.boards.map(b => b.id === manageBoardId ? { ...b, name } : b) })
+    setManageBoardId(null)
+  }
+
+  const deleteBoard = id => {
+    if (data.boards.length <= 1) return
+    if (!confirm(T.deleteBoardConfirm)) return
+    const newBoards = data.boards.filter(b => b.id !== id)
+    const targetId = newBoards[0].id
+    const newBoardData = { ...data.boardData }
+    delete newBoardData[id]
+    const bd = newBoardData[targetId] || { tasks: [], categories: [] }
+    persist({ ...data, boards: newBoards, boardData: newBoardData, tasks: bd.tasks, categories: bd.categories, activeBoardId: targetId })
+    setManageBoardId(null); setSelectedCat(null); setSearchText('')
+  }
 
   const saveApiKey = () => {
     const key = apiKeyInput.trim()
@@ -1300,6 +1407,26 @@ function App() {
         )
       ),
 
+      // Board bar
+      h('div', { class: 'board-bar' },
+        data.boards.map(board => {
+          const isActive = board.id === data.activeBoardId
+          return h('button', {
+            key: board.id,
+            class: `board-chip${isActive ? ' active' : ''}`,
+            onClick: () => isActive ? null : switchBoard(board.id),
+          },
+            board.name,
+            isActive && h('button', {
+              class: 'board-chip-manage',
+              title: T.manageBoardTitle,
+              onClick: e => { e.stopPropagation(); openManageBoard(board) },
+            }, '✎')
+          )
+        }),
+        h('button', { class: 'board-chip board-add-btn', onClick: () => { setNewBoardName(''); setShowAddBoard(true) }, title: T.addBoardTitle }, '+')
+      ),
+
       // Settings
       showSettings && h('div', { class: 'settings-panel' },
         h('h3', null, T.apiKeyTitle),
@@ -1561,6 +1688,41 @@ function App() {
     ),
 
     showStats && h(StatsView, { data, T, onClose: () => setShowStats(false) }),
+
+    showAddBoard && h('div', { class: 'board-modal-overlay', onClick: e => { if (e.target === e.currentTarget) setShowAddBoard(false) } },
+      h('div', { class: 'board-modal' },
+        h('h3', null, T.addBoardTitle),
+        h('input', {
+          class: 'board-modal-input', autofocus: true,
+          placeholder: T.boardNamePlaceholder,
+          value: newBoardName,
+          onInput: e => setNewBoardName(e.target.value),
+          onKeyDown: e => { if (e.key === 'Enter') addBoard(); if (e.key === 'Escape') setShowAddBoard(false) },
+        }),
+        h('div', { class: 'board-modal-btns' },
+          h('button', { class: 'btn-ghost', onClick: () => setShowAddBoard(false) }, T.cancel),
+          h('button', { class: 'btn-primary', onClick: addBoard, disabled: !newBoardName.trim() }, T.addBoardBtn)
+        )
+      )
+    ),
+
+    manageBoardId && h('div', { class: 'board-modal-overlay', onClick: e => { if (e.target === e.currentTarget) setManageBoardId(null) } },
+      h('div', { class: 'board-modal' },
+        h('h3', null, T.manageBoardTitle),
+        h('input', {
+          class: 'board-modal-input', autofocus: true,
+          placeholder: T.boardNamePlaceholder,
+          value: manageBoardName,
+          onInput: e => setManageBoardName(e.target.value),
+          onKeyDown: e => { if (e.key === 'Enter') saveRenameBoard(); if (e.key === 'Escape') setManageBoardId(null) },
+        }),
+        h('div', { class: 'board-modal-btns' },
+          data.boards.length > 1 && h('button', { class: 'board-modal-del', onClick: () => deleteBoard(manageBoardId) }, T.deleteBoardBtn),
+          h('button', { class: 'btn-ghost', onClick: () => setManageBoardId(null) }, T.cancel),
+          h('button', { class: 'btn-primary', onClick: saveRenameBoard, disabled: !manageBoardName.trim() }, T.renameBtn)
+        )
+      )
+    ),
 
     // Toast
     toast && h('div', { class: 'toast' },
