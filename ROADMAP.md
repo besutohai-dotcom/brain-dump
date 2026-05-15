@@ -1,7 +1,7 @@
 # Brain Dump Roadmap
 
 Managed by an autonomous Claude agent. Updated after each improvement cycle.
-Last updated: 2026-05-14
+Last updated: 2026-05-15
 
 ## Done
 - [x] Core app: brain dump input to AI categorization to task list
@@ -31,10 +31,10 @@ Last updated: 2026-05-14
 - [x] Recurring tasks -- daily/weekly repeat option
 - [x] Markdown in notes -- render bold, italic, checklists
 - [x] Multiple boards -- switch between independent brain-dump contexts
+- [x] Share task -- copy shareable text summary
 
 ## Planned (priority order)
 
-- [ ] Share task -- copy shareable text summary
 - [ ] Drag to reorder tasks
 - [ ] Focus mode -- show only top 3 tasks at a time
 - [ ] Weekly summary -- AI-generated weekly review of completed tasks
@@ -55,6 +55,7 @@ Last updated: 2026-05-14
 | 2026-05-10 | Recurring tasks (daily/weekly repeat) | Deployed | OK |
 | 2026-05-12 | Markdown in notes (bold, italic, checklists) | Deployed | OK |
 | 2026-05-14 | Multiple boards (independent task contexts) | Deployed | OK |
+| 2026-05-15 | Share task (copy to clipboard) | Deployed | OK |
 
 ## User Ideas
 - Voice input for easier navigation (done)
@@ -78,6 +79,7 @@ Last updated: 2026-05-14
 - 2026-05-10: Recurring tasks -- daily/weekly repeat; recurrence badge on task cards; auto-advance due date on completion
 - 2026-05-09: Browser push notifications -- toggle in Settings, Notifications API, checks every 5 min for due/overdue tasks, deduplicates across sessions, bilingual
 - 2026-05-14: Multiple boards -- horizontal board bar below header; create/switch/rename/delete boards; each board has independent tasks and categories; fully backward-compatible migration from single-board storage
+- 2026-05-15: Share task -- 📤 button on each task card; builds formatted text summary (title, category, priority, due date, recurrence, status, notes); copies to clipboard via Clipboard API with fallback; toast confirmation; bilingual
 
 ## 2026-05-06 - Task Notes (Expandable Sub-Notes)
 - Button added to every task card; amber color when a note exists
@@ -142,3 +144,11 @@ Last updated: 2026-05-14
 - Backward-compatible migration: existing single-board data automatically wrapped in a default "メイン" board
 - persist() auto-syncs boardData for the active board on every save — no manual sync needed
 - Bilingual: full Japanese/English UI strings for all board interactions
+
+## 2026-05-15 - Share Task
+- 📤 button added to every task card (hidden in edit mode and batch mode)
+- Builds a formatted plain-text summary: title, category, priority, due date (if set), recurrence (if set), status, notes (if any), and original text
+- Copies to clipboard via navigator.clipboard with execCommand fallback for older browsers
+- Toast notification confirms copy success ("📋 クリップボードにコピーしました" / "📋 Copied to clipboard")
+- No schema change; fully backward-compatible
+- Bilingual: full Japanese/English field labels and status strings
