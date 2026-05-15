@@ -644,6 +644,15 @@ const TRANSLATIONS = {
     renameBtn: '変更',
     deleteBoardBtn: '削除',
     deleteBoardConfirm: 'このボードとすべてのタスクを削除しますか？',
+    shareBtnTitle: 'タスクをコピー',
+    shareCopied: '📋 クリップボードにコピーしました',
+    shareStatus: { active: '進行中', done: '完了' },
+    shareFieldCategory: 'カテゴリ',
+    shareFieldPriority: '優先度',
+    shareFieldDue: '期限',
+    shareFieldRecur: '繰り返し',
+    shareFieldStatus: 'ステータス',
+    shareFieldNotes: 'メモ',
     onboarding: {
       title: 'ブレインダンプへようこそ',
       desc: '頭の中のアイデアやタスクを素早くキャプチャ。AIが自動で整理・分類してくれます。',
@@ -761,6 +770,15 @@ const TRANSLATIONS = {
     renameBtn: 'Rename',
     deleteBoardBtn: 'Delete',
     deleteBoardConfirm: 'Delete this board and all its tasks?',
+    shareBtnTitle: 'Copy task',
+    shareCopied: '📋 Copied to clipboard',
+    shareStatus: { active: 'Active', done: 'Done' },
+    shareFieldCategory: 'Category',
+    shareFieldPriority: 'Priority',
+    shareFieldDue: 'Due',
+    shareFieldRecur: 'Repeat',
+    shareFieldStatus: 'Status',
+    shareFieldNotes: 'Notes',
     onboarding: {
       title: 'Welcome to Brain Dump',
       desc: 'Quickly capture ideas and tasks from your mind. AI automatically organizes everything for you.',
@@ -1252,6 +1270,32 @@ function App() {
 
   const cancelEdit = () => setEditingId(null)
 
+  const shareTask = task => {
+    const lines = [`📌 ${task.title}`]
+    lines.push(`${T.shareFieldCategory}: ${task.category}`)
+    lines.push(`${T.shareFieldPriority}: ${T.priority[task.priority || 'medium']}`)
+    if (task.dueDate) lines.push(`${T.shareFieldDue}: ${task.dueDate}`)
+    if (task.recurrence) lines.push(`${T.shareFieldRecur}: ${T.recurBadge(task.recurrence)}`)
+    lines.push(`${T.shareFieldStatus}: ${T.shareStatus[task.status]}`)
+    if (task.notes && task.notes.trim()) lines.push(`\n${T.shareFieldNotes}:\n${task.notes.trim()}`)
+    if (task.originalText && task.originalText.trim()) lines.push(`\n${task.originalText.trim()}`)
+    const text = lines.join('\n')
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(() => showToast(T.shareCopied, null))
+        .catch(() => {
+          const ta = document.createElement('textarea')
+          ta.value = text; document.body.appendChild(ta); ta.select()
+          document.execCommand('copy'); document.body.removeChild(ta)
+          showToast(T.shareCopied, null)
+        })
+    } else {
+      const ta = document.createElement('textarea')
+      ta.value = text; document.body.appendChild(ta); ta.select()
+      document.execCommand('copy'); document.body.removeChild(ta)
+      showToast(T.shareCopied, null)
+    }
+  }
+
   const toggleNotes = id => setExpandedNotes(prev => {
     const next = new Set(prev)
     next.has(id) ? next.delete(id) : next.add(id)
@@ -1592,6 +1636,10 @@ function App() {
                   class: 'icon-btn', title: T.editTitle,
                   onClick: () => startEdit(task),
                 }, '✏️'),
+                !isEditing && h('button', {
+                  class: 'icon-btn icon-share', title: T.shareBtnTitle,
+                  onClick: () => shareTask(task),
+                }, '📤'),
                 h('button', {
                   class: `icon-btn ${task.status === 'done' ? 'icon-done' : ''}`,
                   onClick: () => toggleDone(task.id),
