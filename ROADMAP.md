@@ -1,7 +1,7 @@
 # Brain Dump Roadmap
 
 Managed by an autonomous Claude agent. Updated after each improvement cycle.
-Last updated: 2026-05-15
+Last updated: 2026-05-16
 
 ## Done
 - [x] Core app: brain dump input to AI categorization to task list
@@ -32,10 +32,10 @@ Last updated: 2026-05-15
 - [x] Markdown in notes -- render bold, italic, checklists
 - [x] Multiple boards -- switch between independent brain-dump contexts
 - [x] Share task -- copy shareable text summary
+- [x] Drag to reorder tasks
 
 ## Planned (priority order)
 
-- [ ] Drag to reorder tasks
 - [ ] Focus mode -- show only top 3 tasks at a time
 - [ ] Weekly summary -- AI-generated weekly review of completed tasks
 
@@ -56,6 +56,7 @@ Last updated: 2026-05-15
 | 2026-05-12 | Markdown in notes (bold, italic, checklists) | Deployed | OK |
 | 2026-05-14 | Multiple boards (independent task contexts) | Deployed | OK |
 | 2026-05-15 | Share task (copy to clipboard) | Deployed | OK |
+| 2026-05-16 | Drag to reorder tasks (HTML5 DnD, per-board manual order) | Deployed | OK |
 
 ## User Ideas
 - Voice input for easier navigation (done)
@@ -79,6 +80,7 @@ Last updated: 2026-05-15
 - 2026-05-10: Recurring tasks -- daily/weekly repeat; recurrence badge on task cards; auto-advance due date on completion
 - 2026-05-09: Browser push notifications -- toggle in Settings, Notifications API, checks every 5 min for due/overdue tasks, deduplicates across sessions, bilingual
 - 2026-05-14: Multiple boards -- horizontal board bar below header; create/switch/rename/delete boards; each board has independent tasks and categories; fully backward-compatible migration from single-board storage
+- 2026-05-16: Drag to reorder -- drag handle on each card, HTML5 DnD, per-board manual order in localStorage; falls back to priority sort; backward-compatible
 - 2026-05-15: Share task -- 📤 button on each task card; builds formatted text summary (title, category, priority, due date, recurrence, status, notes); copies to clipboard via Clipboard API with fallback; toast confirmation; bilingual
 
 ## 2026-05-06 - Task Notes (Expandable Sub-Notes)
@@ -152,3 +154,16 @@ Last updated: 2026-05-15
 - Toast notification confirms copy success ("📋 クリップボードにコピーしました" / "📋 Copied to clipboard")
 - No schema change; fully backward-compatible
 - Bilingual: full Japanese/English field labels and status strings
+
+## 2026-05-16 - Drag to Reorder Tasks
+- Drag handle added to each task card (left side of labels row)
+- HTML5 Drag and Drop API: dragstart, dragover, drop, dragend events on each task card
+- Visual indicator: blue top/bottom border on drag-over target showing exact insertion point
+- Dragging card shown at 45% opacity while being dragged
+- Manual order stored as taskOrder[] per board in localStorage boardData
+- Falls back to priority sort (high/medium/low) when no manual order exists (backward-compatible)
+- Done tasks always sorted to the bottom regardless of manual order
+- New tasks prepended to taskOrder; deleted tasks removed from taskOrder
+- Batch delete and undo operations keep taskOrder in sync
+- Board switching preserves independent taskOrder per board
+- Bilingual: drag handle tooltip in Japanese and English
