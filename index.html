@@ -404,6 +404,15 @@
       border-radius:8px;padding:7px 14px;font-size:.85rem;font-family:inherit;
       color:var(--danger);cursor:pointer}
     .board-modal-del:hover{background:#fff0ee}
+    /* Drag to reorder */
+    .drag-handle{background:none;border:none;cursor:grab;color:var(--muted);
+      font-size:1rem;padding:2px 3px;border-radius:4px;opacity:.35;
+      transition:opacity .15s;flex-shrink:0;line-height:1;font-family:inherit}
+    .drag-handle:hover{opacity:.9;background:var(--border)}
+    .drag-handle:active{cursor:grabbing}
+    .swipe-wrap.drag-over-before{border-top:2px solid var(--primary)!important}
+    .swipe-wrap.drag-over-after{border-bottom:2px solid var(--primary)!important}
+    .swipe-wrap.is-dragging{opacity:.45}
   </style>
 </head>
 <body>
@@ -505,7 +514,7 @@ async function queryTasks(apiKey, query, tasks, lang) {
 
 // ─── Storage ──────────────────────────────────────────────────────
 const KEY = 'brain-dump-v1'
-const DEFAULTS = {tasks:[],categories:[],apiKey:'',lang:'ja',onboarded:false,notificationsEnabled:false,boards:[],activeBoardId:null,boardData:{}}
+const DEFAULTS = {tasks:[],categories:[],apiKey:'',lang:'ja',onboarded:false,notificationsEnabled:false,boards:[],activeBoardId:null,boardData:{},taskOrder:[]}
 const load = () => {
   try {
     const raw = { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) || 'null') }
@@ -646,6 +655,7 @@ const TRANSLATIONS = {
     deleteBoardConfirm: 'このボードとすべてのタスクを削除しますか？',
     shareBtnTitle: 'タスクをコピー',
     shareCopied: '📋 クリップボードにコピーしました',
+    dragHandleTitle: 'ドラッグして並び替え',
     shareStatus: { active: '進行中', done: '完了' },
     shareFieldCategory: 'カテゴリ',
     shareFieldPriority: '優先度',
@@ -772,6 +782,7 @@ const TRANSLATIONS = {
     deleteBoardConfirm: 'Delete this board and all its tasks?',
     shareBtnTitle: 'Copy task',
     shareCopied: '📋 Copied to clipboard',
+    dragHandleTitle: 'Drag to reorder',
     shareStatus: { active: 'Active', done: 'Done' },
     shareFieldCategory: 'Category',
     shareFieldPriority: 'Priority',
@@ -837,7 +848,7 @@ function checkAndNotify(tasks, T) {
 }
 
 // ─── SwipeCard ────────────────────────────────────────────────────
-function SwipeCard({ children, isDone, disabled, onComplete, onDelete }) {
+function SwipeCard({ children, isDone, disabled, onComplete, onDelete, draggable: isDraggable, dragClass, onDragStart, onDragOver, onDrop, onDragEnd }) {
   const [dx, setDx] = useState(0)
   const s = useRef({ startX:0, startY:0, axis:null, dx:0, active:false })
   const wrapRef = useRef(null)
@@ -884,7 +895,8 @@ function SwipeCard({ children, isDone, disabled, onComplete, onDelete }) {
 
   const progress = Math.min(Math.abs(dx) / THRESHOLD, 1)
 
-  return h('div', { ref: wrapRef, class: 'swipe-wrap', onTouchStart, onTouchEnd },
+  return h('div', { ref: wrapRef, class: `swipe-wrap${dragClass ? ' ' + dragClass : ''}`, onTouchStart, onTouchEnd,
+    draggable: isDraggable || false, onDragStart, onDragOver, onDrop, onDragEnd },
     h('div', { class: 'swipe-bg swipe-bg-complete', style: `opacity:${dx > 0 ? progress : 0}` }, '✓'),
     h('div', { class: 'swipe-bg swipe-bg-delete', style: `opacity:${dx < 0 ? progress : 0}` }, '✕'),
     h('div', {
@@ -1051,6 +1063,9 @@ function App() {
     'Notification' in window ? Notification.permission : 'unsupported'
   )
   const toastTimer = useRef(null)
+  const draggingIdRef = useRef(null)
+  const [draggingId, setDraggingId] = useState(null)
+  const [dragOverId, setDragOverId] = useState(null)
 
   const lang = data.lang || 'ja'
   const T = TRANSLATIONS[lang]
@@ -1105,7 +1120,7 @@ function App() {
 
   const persist = useCallback(next => {
     if (next.activeBoardId && next.boardData) {
-      next = { ...next, boardData: { ...next.boardData, [next.activeBoardId]: { tasks: next.tasks, categories: next.categories } } }
+      next = { ...next, boardData: { ...next.boardData, [next.activeBoardId]: { tasks: next.tasks, categories: next.categories, taskOrder: next.taskOrder || [] } } }
     }
     setData(next)
     localStorage.setItem(KEY, JSON.stringify(next))
@@ -1115,9 +1130,9 @@ function App() {
 
   const switchBoard = id => {
     if (id === data.activeBoardId) return
-    const updatedBoardData = { ...data.boardData, [data.activeBoardId]: { tasks: data.tasks, categories: data.categories } }
-    const bd = updatedBoardData[id] || { tasks: [], categories: [] }
-    persist({ ...data, tasks: bd.tasks, categories: bd.categories, activeBoardId: id, boardData: updatedBoardData })
+    const updatedBoardData = { ...data.boardData, [data.activeBoardId]: { tasks: data.tasks, categories: data.categories, taskOrder: data.taskOrder || [] } }
+    const bd = updatedBoardData[id] || { tasks: [], categories: [], taskOrder: [] }
+    persist({ ...data, tasks: bd.tasks, categories: bd.categories, taskOrder: bd.taskOrder || [], activeBoardId: id, boardData: updatedBoardData })
     setSelectedCat(null); setSearchText('')
   }
 
@@ -1125,8 +1140,8 @@ function App() {
     const name = newBoardName.trim()
     if (!name) return
     const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`
-    const updatedBoardData = { ...data.boardData, [data.activeBoardId]: { tasks: data.tasks, categories: data.categories }, [id]: { tasks: [], categories: [] } }
-    persist({ ...data, boards: [...data.boards, { id, name }], boardData: updatedBoardData, tasks: [], categories: [], activeBoardId: id })
+    const updatedBoardData = { ...data.boardData, [data.activeBoardId]: { tasks: data.tasks, categories: data.categories, taskOrder: data.taskOrder || [] }, [id]: { tasks: [], categories: [], taskOrder: [] } }
+    persist({ ...data, boards: [...data.boards, { id, name }], boardData: updatedBoardData, tasks: [], categories: [], taskOrder: [], activeBoardId: id })
     setNewBoardName(''); setShowAddBoard(false); setSelectedCat(null); setSearchText('')
   }
 
@@ -1149,8 +1164,8 @@ function App() {
     const targetId = newBoards[0].id
     const newBoardData = { ...data.boardData }
     delete newBoardData[id]
-    const bd = newBoardData[targetId] || { tasks: [], categories: [] }
-    persist({ ...data, boards: newBoards, boardData: newBoardData, tasks: bd.tasks, categories: bd.categories, activeBoardId: targetId })
+    const bd = newBoardData[targetId] || { tasks: [], categories: [], taskOrder: [] }
+    persist({ ...data, boards: newBoards, boardData: newBoardData, tasks: bd.tasks, categories: bd.categories, taskOrder: bd.taskOrder || [], activeBoardId: targetId })
     setManageBoardId(null); setSelectedCat(null); setSearchText('')
   }
 
@@ -1186,7 +1201,8 @@ function App() {
         nextActions: [], createdAt: new Date().toISOString(), status: 'active', priority: 'medium',
       }
       const cats = data.categories.includes(category) ? data.categories : [...data.categories, category]
-      persist({ ...data, tasks: [task, ...data.tasks], categories: cats })
+      const newTaskOrder = [task.id, ...(data.taskOrder || [])]
+      persist({ ...data, tasks: [task, ...data.tasks], categories: cats, taskOrder: newTaskOrder })
       setInput('')
     } catch (e) { setError(e.message || T.errorDefault) }
     finally { setAdding(false) }
@@ -1240,10 +1256,10 @@ function App() {
 
   const deleteTask = id => {
     const task = data.tasks.find(t => t.id === id)
-    const next = { ...data, tasks: data.tasks.filter(t => t.id !== id) }
+    const next = { ...data, tasks: data.tasks.filter(t => t.id !== id), taskOrder: (data.taskOrder || []).filter(tid => tid !== id) }
     persist(next)
     showToast(T.taskDeleted, () => {
-      persist({ ...next, tasks: [task, ...next.tasks] })
+      persist({ ...next, tasks: [task, ...next.tasks], taskOrder: [task.id, ...(next.taskOrder || [])] })
       setToast(null)
     })
   }
@@ -1320,6 +1336,44 @@ function App() {
 
   const toggleBatchMode = () => { setBatchMode(m => !m); setSelectedIds(new Set()) }
 
+  const handleDragStart = (e, taskId) => {
+    draggingIdRef.current = taskId
+    setDraggingId(taskId)
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', taskId)
+  }
+
+  const handleDragOver = (e, taskId) => {
+    e.preventDefault()
+    const rect = e.currentTarget.getBoundingClientRect()
+    const pos = e.clientY < rect.top + rect.height / 2 ? 'before' : 'after'
+    const newId = `${taskId}:${pos}`
+    if (dragOverId !== newId) setDragOverId(newId)
+  }
+
+  const handleDrop = (e, targetId) => {
+    e.preventDefault()
+    const dragId = draggingIdRef.current
+    if (!dragId || dragId === targetId) {
+      draggingIdRef.current = null; setDraggingId(null); setDragOverId(null); return
+    }
+    const rect = e.currentTarget.getBoundingClientRect()
+    const pos = e.clientY < rect.top + rect.height / 2 ? 'before' : 'after'
+    const allIds = data.tasks.map(t => t.id)
+    const baseOrder = (data.taskOrder || []).length > 0 ? data.taskOrder : allIds
+    const withoutDragged = baseOrder.filter(id => id !== dragId)
+    const targetIdx = withoutDragged.indexOf(targetId)
+    if (targetIdx === -1) { draggingIdRef.current = null; setDraggingId(null); setDragOverId(null); return }
+    const insertIdx = pos === 'before' ? targetIdx : targetIdx + 1
+    const newOrder = [...withoutDragged.slice(0, insertIdx), dragId, ...withoutDragged.slice(insertIdx)]
+    persist({ ...data, taskOrder: newOrder })
+    draggingIdRef.current = null; setDraggingId(null); setDragOverId(null)
+  }
+
+  const handleDragEnd = () => {
+    draggingIdRef.current = null; setDraggingId(null); setDragOverId(null)
+  }
+
   const requestNotifPermission = async () => {
     if (!('Notification' in window)) return
     const perm = await Notification.requestPermission()
@@ -1354,9 +1408,9 @@ function App() {
 
   const batchDelete = () => {
     const toDelete = data.tasks.filter(t => selectedIds.has(t.id))
-    const next = { ...data, tasks: data.tasks.filter(t => !selectedIds.has(t.id)) }
+    const next = { ...data, tasks: data.tasks.filter(t => !selectedIds.has(t.id)), taskOrder: (data.taskOrder || []).filter(id => !selectedIds.has(id)) }
     persist(next); setBatchMode(false); setSelectedIds(new Set())
-    showToast(T.taskDeleted, () => { persist({ ...next, tasks: [...toDelete, ...next.tasks] }); setToast(null) })
+    showToast(T.taskDeleted, () => { persist({ ...next, tasks: [...toDelete, ...next.tasks], taskOrder: [...toDelete.map(t => t.id), ...(next.taskOrder || [])] }); setToast(null) })
   }
 
   const clearAll = () => {
@@ -1407,8 +1461,15 @@ function App() {
       t.title.toLowerCase().includes(search) ||
       t.originalText.toLowerCase().includes(search) ||
       t.category.toLowerCase().includes(search))
+  const taskOrder = data.taskOrder || []
+  const orderMap = new Map(taskOrder.map((id, i) => [id, i]))
   const filtered = [...rawFiltered].sort((a, b) => {
     if (a.status !== b.status) return a.status === 'done' ? 1 : -1
+    if (taskOrder.length > 0) {
+      const ai = orderMap.has(a.id) ? orderMap.get(a.id) : Infinity
+      const bi = orderMap.has(b.id) ? orderMap.get(b.id) : Infinity
+      return ai - bi
+    }
     return (PRIORITY_ORDER[a.priority || 'medium']) - (PRIORITY_ORDER[b.priority || 'medium'])
   })
   const activeCount = data.tasks.filter(t => t.status === 'active').length
@@ -1611,9 +1672,23 @@ function App() {
             disabled: isEditing || batchMode,
             onComplete: () => toggleDone(task.id),
             onDelete: () => deleteTask(task.id),
+            draggable: !batchMode && !isEditing,
+            dragClass: [
+              draggingId === task.id ? 'is-dragging' : '',
+              dragOverId === `${task.id}:before` ? 'drag-over-before' : '',
+              dragOverId === `${task.id}:after` ? 'drag-over-after' : '',
+            ].filter(Boolean).join(' ') || undefined,
+            onDragStart: e => handleDragStart(e, task.id),
+            onDragOver: e => handleDragOver(e, task.id),
+            onDrop: e => handleDrop(e, task.id),
+            onDragEnd: handleDragEnd,
           },
             h('div', { class: 'task-top' },
               h('div', { class: 'task-labels' },
+                !batchMode && !isEditing && h('button', {
+                  class: 'drag-handle',
+                  title: T.dragHandleTitle,
+                }, '⠿'),
                 batchMode && h('div', {
                   class: `task-checkbox ${selectedIds.has(task.id) ? 'checked' : ''}`,
                   onClick: () => toggleSelectTask(task.id),
