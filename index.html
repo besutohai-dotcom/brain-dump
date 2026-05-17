@@ -413,6 +413,13 @@
     .swipe-wrap.drag-over-before{border-top:2px solid var(--primary)!important}
     .swipe-wrap.drag-over-after{border-bottom:2px solid var(--primary)!important}
     .swipe-wrap.is-dragging{opacity:.45}
+    /* Focus mode */
+    .focus-banner{display:flex;align-items:center;justify-content:space-between;
+      padding:8px 14px;background:var(--primary)18;border:1px solid var(--primary)44;
+      border-radius:10px;margin-bottom:10px;font-size:.82rem;color:var(--primary);font-weight:500}
+    .focus-exit-btn{background:none;border:1px solid var(--primary)55;border-radius:7px;
+      padding:4px 10px;font-size:.78rem;font-family:inherit;color:var(--primary);cursor:pointer;transition:all .15s}
+    .focus-exit-btn:hover{background:var(--primary);color:#fff}
   </style>
 </head>
 <body>
@@ -656,6 +663,10 @@ const TRANSLATIONS = {
     shareBtnTitle: 'タスクをコピー',
     shareCopied: '📋 クリップボードにコピーしました',
     dragHandleTitle: 'ドラッグして並び替え',
+    focusModeBtn: '🎯 フォーカス',
+    focusModeExitBtn: '🎯 全表示',
+    focusBanner: n => `フォーカスモード — 優先タスク3件${n > 0 ? `（残り${n}件）` : ''}`,
+    focusEmpty: '✨ アクティブなタスクはありません',
     shareStatus: { active: '進行中', done: '完了' },
     shareFieldCategory: 'カテゴリ',
     shareFieldPriority: '優先度',
@@ -783,6 +794,10 @@ const TRANSLATIONS = {
     shareBtnTitle: 'Copy task',
     shareCopied: '📋 Copied to clipboard',
     dragHandleTitle: 'Drag to reorder',
+    focusModeBtn: '🎯 Focus',
+    focusModeExitBtn: '🎯 All Tasks',
+    focusBanner: n => `Focus mode — top 3 tasks${n > 0 ? ` (${n} more hidden)` : ''}`,
+    focusEmpty: '✨ No active tasks',
     shareStatus: { active: 'Active', done: 'Done' },
     shareFieldCategory: 'Category',
     shareFieldPriority: 'Priority',
@@ -1066,6 +1081,7 @@ function App() {
   const draggingIdRef = useRef(null)
   const [draggingId, setDraggingId] = useState(null)
   const [dragOverId, setDragOverId] = useState(null)
+  const [focusMode, setFocusMode] = useState(false)
 
   const lang = data.lang || 'ja'
   const T = TRANSLATIONS[lang]
@@ -1133,7 +1149,7 @@ function App() {
     const updatedBoardData = { ...data.boardData, [data.activeBoardId]: { tasks: data.tasks, categories: data.categories, taskOrder: data.taskOrder || [] } }
     const bd = updatedBoardData[id] || { tasks: [], categories: [], taskOrder: [] }
     persist({ ...data, tasks: bd.tasks, categories: bd.categories, taskOrder: bd.taskOrder || [], activeBoardId: id, boardData: updatedBoardData })
-    setSelectedCat(null); setSearchText('')
+    setSelectedCat(null); setSearchText(''); setFocusMode(false)
   }
 
   const addBoard = () => {
@@ -1399,7 +1415,7 @@ function App() {
     return next
   })
 
-  const batchSelectAll = () => setSelectedIds(new Set(filtered.map(t => t.id)))
+  const batchSelectAll = () => setSelectedIds(new Set(focusShown.map(t => t.id)))
 
   const batchComplete = () => {
     persist({ ...data, tasks: data.tasks.map(t => selectedIds.has(t.id) ? {...t, status: 'done'} : t) })
@@ -1474,6 +1490,9 @@ function App() {
   })
   const activeCount = data.tasks.filter(t => t.status === 'active').length
   const doneCount = data.tasks.filter(t => t.status === 'done').length
+  const focusActive = focusMode ? filtered.filter(t => t.status === 'active') : null
+  const focusShown = focusMode ? focusActive.slice(0, 3) : filtered
+  const focusHidden = focusMode ? Math.max(0, focusActive.length - 3) : 0
   const showOnboarding = !data.apiKey && !data.onboarded
 
   return h(Fragment, null,
@@ -1507,6 +1526,11 @@ function App() {
           ),
           data.tasks.length > 0 && h('button', { class: 'btn-ghost', onClick: toggleBatchMode },
             batchMode ? T.batchCancel : T.batchSelect),
+          !batchMode && data.tasks.filter(t => t.status === 'active').length > 0 && h('button', {
+            class: `btn-ghost${focusMode ? ' lang-btn' : ''}`,
+            onClick: () => setFocusMode(m => !m),
+            title: focusMode ? T.focusModeExitBtn : T.focusModeBtn,
+          }, focusMode ? T.focusModeExitBtn : T.focusModeBtn),
           !batchMode && data.tasks.length > 0 && h('button', { class: 'btn-ghost', onClick: () => setShowStats(s => !s) }, T.statsBtn),
           !batchMode && h('button', { class: 'btn-ghost', onClick: () => setShowSettings(s => !s) }, T.settings)
         )
@@ -1650,17 +1674,23 @@ function App() {
 
       // Task list
       h('div', { class: 'task-list' },
-        filtered.length === 0 && h('div', { class: 'empty-state' },
-          data.tasks.length === 0
-            ? h(Fragment, null,
-                T.emptyMain, h('br'),
-                h('small', null, T.emptyHint1), h('br'),
-                h('small', null, T.emptyHint2))
-            : search
-              ? T.emptySearch(searchText)
-              : T.emptyCat
+        focusMode && h('div', { class: 'focus-banner' },
+          h('span', null, T.focusBanner(focusHidden)),
+          h('button', { class: 'focus-exit-btn', onClick: () => setFocusMode(false) }, T.focusModeExitBtn)
         ),
-        filtered.map(task => {
+        focusShown.length === 0 && h('div', { class: 'empty-state' },
+          focusMode
+            ? T.focusEmpty
+            : data.tasks.length === 0
+              ? h(Fragment, null,
+                  T.emptyMain, h('br'),
+                  h('small', null, T.emptyHint1), h('br'),
+                  h('small', null, T.emptyHint2))
+              : search
+                ? T.emptySearch(searchText)
+                : T.emptyCat
+        ),
+        focusShown.map(task => {
           const color = catColor(task.category, data.categories)
           const isEditing = editingId === task.id
           const pColor = PRIORITY_COLORS[task.priority || 'medium']
