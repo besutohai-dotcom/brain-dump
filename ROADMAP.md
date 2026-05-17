@@ -1,7 +1,7 @@
 # Brain Dump Roadmap
 
 Managed by an autonomous Claude agent. Updated after each improvement cycle.
-Last updated: 2026-05-16
+Last updated: 2026-05-17
 
 ## Done
 - [x] Core app: brain dump input to AI categorization to task list
@@ -33,10 +33,10 @@ Last updated: 2026-05-16
 - [x] Multiple boards -- switch between independent brain-dump contexts
 - [x] Share task -- copy shareable text summary
 - [x] Drag to reorder tasks
+- [x] Focus mode -- show only top 3 active tasks at a time
 
 ## Planned (priority order)
 
-- [ ] Focus mode -- show only top 3 tasks at a time
 - [ ] Weekly summary -- AI-generated weekly review of completed tasks
 
 ## Test Log
@@ -57,6 +57,7 @@ Last updated: 2026-05-16
 | 2026-05-14 | Multiple boards (independent task contexts) | Deployed | OK |
 | 2026-05-15 | Share task (copy to clipboard) | Deployed | OK |
 | 2026-05-16 | Drag to reorder tasks (HTML5 DnD, per-board manual order) | Deployed | OK |
+| 2026-05-17 | Focus mode (top 3 active tasks, header toggle, banner, bilingual) | Deployed | OK |
 
 ## User Ideas
 - Voice input for easier navigation (done)
@@ -80,6 +81,7 @@ Last updated: 2026-05-16
 - 2026-05-10: Recurring tasks -- daily/weekly repeat; recurrence badge on task cards; auto-advance due date on completion
 - 2026-05-09: Browser push notifications -- toggle in Settings, Notifications API, checks every 5 min for due/overdue tasks, deduplicates across sessions, bilingual
 - 2026-05-14: Multiple boards -- horizontal board bar below header; create/switch/rename/delete boards; each board has independent tasks and categories; fully backward-compatible migration from single-board storage
+- 2026-05-17: Focus mode -- 🎯 header toggle button; shows top 3 active tasks only; focus banner shows hidden task count; exit button in banner; resets on board switch; bilingual
 - 2026-05-16: Drag to reorder -- drag handle on each card, HTML5 DnD, per-board manual order in localStorage; falls back to priority sort; backward-compatible
 - 2026-05-15: Share task -- 📤 button on each task card; builds formatted text summary (title, category, priority, due date, recurrence, status, notes); copies to clipboard via Clipboard API with fallback; toast confirmation; bilingual
 
@@ -154,6 +156,16 @@ Last updated: 2026-05-16
 - Toast notification confirms copy success ("📋 クリップボードにコピーしました" / "📋 Copied to clipboard")
 - No schema change; fully backward-compatible
 - Bilingual: full Japanese/English field labels and status strings
+
+## 2026-05-17 - Focus Mode
+- 🎯 Focus button in header (visible when there are active tasks, hidden in batch mode)
+- Button highlighted in primary color when focus mode is active
+- Filters task list to top 3 active tasks only (done tasks hidden)
+- Focus banner shows inside the task list: "フォーカスモード — 優先タスク3件（残りN件）" with hidden count
+- Exit button in banner ("🎯 全表示" / "🎯 All Tasks") exits focus mode immediately
+- Focus mode auto-resets when switching boards
+- No schema change; session-only state (not persisted)
+- Bilingual: full Japanese/English UI strings
 
 ## 2026-05-16 - Drag to Reorder Tasks
 - Drag handle added to each task card (left side of labels row)
