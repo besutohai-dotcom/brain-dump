@@ -1,7 +1,7 @@
 # Brain Dump Roadmap
 
 Managed by an autonomous Claude agent. Updated after each improvement cycle.
-Last updated: 2026-05-17
+Last updated: 2026-05-18
 
 ## Done
 - [x] Core app: brain dump input to AI categorization to task list
@@ -34,10 +34,11 @@ Last updated: 2026-05-17
 - [x] Share task -- copy shareable text summary
 - [x] Drag to reorder tasks
 - [x] Focus mode -- show only top 3 active tasks at a time
+- [x] Weekly summary -- AI-generated weekly review of completed tasks
 
 ## Planned (priority order)
 
-- [ ] Weekly summary -- AI-generated weekly review of completed tasks
+_(no items — all roadmap features shipped!)_
 
 ## Test Log
 
@@ -58,6 +59,7 @@ Last updated: 2026-05-17
 | 2026-05-15 | Share task (copy to clipboard) | Deployed | OK |
 | 2026-05-16 | Drag to reorder tasks (HTML5 DnD, per-board manual order) | Deployed | OK |
 | 2026-05-17 | Focus mode (top 3 active tasks, header toggle, banner, bilingual) | Deployed | OK |
+| 2026-05-18 | Weekly summary (AI review, stats cards, task list, regenerate) | Deployed | OK |
 
 ## User Ideas
 - Voice input for easier navigation (done)
@@ -84,6 +86,7 @@ Last updated: 2026-05-17
 - 2026-05-17: Focus mode -- 🎯 header toggle button; shows top 3 active tasks only; focus banner shows hidden task count; exit button in banner; resets on board switch; bilingual
 - 2026-05-16: Drag to reorder -- drag handle on each card, HTML5 DnD, per-board manual order in localStorage; falls back to priority sort; backward-compatible
 - 2026-05-15: Share task -- 📤 button on each task card; builds formatted text summary (title, category, priority, due date, recurrence, status, notes); copies to clipboard via Clipboard API with fallback; toast confirmation; bilingual
+- 2026-05-18: Weekly summary -- 📝 header button; bottom-sheet overlay with 4 stat cards (done/categories/high-pri/remaining); task list preview (up to 8); AI-generated review via Generate button; regenerate support; bilingual
 
 ## 2026-05-06 - Task Notes (Expandable Sub-Notes)
 - Button added to every task card; amber color when a note exists
@@ -179,3 +182,17 @@ Last updated: 2026-05-17
 - Batch delete and undo operations keep taskOrder in sync
 - Board switching preserves independent taskOrder per board
 - Bilingual: drag handle tooltip in Japanese and English
+
+## 2026-05-18 - Weekly Summary
+- 📝 Weekly / 週間 button in header (visible when any task has completedAt, hidden in batch mode)
+- Bottom-sheet overlay (same pattern as Statistics view)
+- Four stat cards: tasks completed in last 7 days, categories covered, high-priority done, remaining active tasks
+- Task preview list: up to 8 completed tasks shown with category badge and title
+- "Generate AI summary" button calls Claude Haiku with completed task list
+- AI prompt asks for: main themes accomplished, notable patterns/wins, 1-2 suggestions for next week
+- Loading state shows spinning indicator while Claude generates the review
+- Generated text displayed in a styled box with left border accent
+- "Regenerate" button allows refreshing the summary at any time
+- Summary text resets when switching boards (each board has independent context)
+- No schema change; session-only state (not persisted to localStorage)
+- Bilingual: full Japanese/English UI strings for all interactions
