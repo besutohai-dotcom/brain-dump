@@ -420,6 +420,19 @@
     .focus-exit-btn{background:none;border:1px solid var(--primary)55;border-radius:7px;
       padding:4px 10px;font-size:.78rem;font-family:inherit;color:var(--primary);cursor:pointer;transition:all .15s}
     .focus-exit-btn:hover{background:var(--primary);color:#fff}
+    /* Weekly summary */
+    .weekly-text{background:var(--bg);border-radius:12px;padding:16px;
+      font-size:.88rem;line-height:1.75;white-space:pre-wrap;
+      border-left:3px solid var(--primary);margin-top:12px;color:var(--text)}
+    .weekly-loading{display:flex;align-items:center;gap:10px;padding:12px 0;color:var(--muted);font-size:.85rem}
+    .weekly-tasks{margin-bottom:16px}
+    .weekly-task-item{display:flex;align-items:center;gap:8px;padding:5px 0;
+      border-bottom:1px solid var(--border);font-size:.82rem}
+    .weekly-task-item:last-child{border-bottom:none}
+    .weekly-task-cat{font-size:.72rem;font-weight:600;padding:2px 7px;border-radius:8px;
+      background:var(--border);color:var(--muted);flex-shrink:0}
+    .weekly-task-title{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .weekly-generate-row{display:flex;align-items:center;gap:10px;margin-bottom:4px}
   </style>
 </head>
 <body>
@@ -517,6 +530,23 @@ async function queryTasks(apiKey, query, tasks, lang) {
   const summary = tasks.length === 0 ? 'タスクはありません'
     : tasks.map(t => `[${t.category}] ${t.title}（${t.status === 'done' ? '完了' : '未完了'}）: ${t.originalText}`).join('\n')
   return callClaude(apiKey, `タスクリスト:\n${summary}\n\n質問: ${query}\n\n日本語で具体的・簡潔に答えてください。`, 1024)
+}
+
+async function generateWeeklySummary(apiKey, tasks, lang) {
+  const now = new Date()
+  const weekAgo = new Date(now)
+  weekAgo.setDate(weekAgo.getDate() - 7)
+  const weekAgoStr = weekAgo.toISOString().slice(0, 10)
+  const done = tasks.filter(t => t.completedAt && t.completedAt.slice(0, 10) >= weekAgoStr)
+  if (done.length === 0) return ''
+  if (lang === 'en') {
+    const list = done.map(t => `- [${t.category}] ${t.title}${t.priority === 'high' ? ' (high priority)' : ''}`).join('\n')
+    return callClaude(apiKey,
+      `You are a supportive productivity coach. The user completed these ${done.length} tasks in the last 7 days:\n${list}\n\nWrite a warm, encouraging weekly review in 3-5 short paragraphs covering:\n1. What was accomplished (main themes and highlights)\n2. Any notable patterns or wins\n3. One or two actionable suggestions for next week\n\nBe specific, concise, and motivating.`, 1024)
+  }
+  const list = done.map(t => `- [${t.category}] ${t.title}${t.priority === 'high' ? '（高優先度）' : ''}`).join('\n')
+  return callClaude(apiKey,
+    `あなたはサポート力のある生産性コーチです。ユーザーが先週（7日以内）に完了した${done.length}件のタスクは以下の通りです：\n${list}\n\n次の内容を含む温かく励みになる週間レビューを3〜5段落で書いてください：\n1. 達成した内容（主なテーマとハイライト）\n2. 目立ったパターンや成果\n3. 来週に向けた1〜2つの具体的な提案\n\n具体的、簡潔、前向きな文体でお願いします。`, 1024)
 }
 
 // ─── Storage ──────────────────────────────────────────────────────
@@ -667,6 +697,18 @@ const TRANSLATIONS = {
     focusModeExitBtn: '🎯 全表示',
     focusBanner: n => `フォーカスモード — 優先タスク3件${n > 0 ? `（残り${n}件）` : ''}`,
     focusEmpty: '✨ アクティブなタスクはありません',
+    weeklyBtn: '📝 週間',
+    weeklyTitle: '週間サマリー',
+    weeklyDoneCount: '完了（先週）',
+    weeklyCategories: 'カテゴリ',
+    weeklyHighPriority: '高優先度完了',
+    weeklyRemaining: '残タスク',
+    weeklyGenerate: 'AIサマリーを生成',
+    weeklyRegenerate: '再生成',
+    weeklyGenerating: 'AI分析中...',
+    weeklyNoTasks: '先週（7日以内）に完了したタスクはありません',
+    weeklyError: 'サマリーの生成に失敗しました。もう一度お試しください。',
+    weeklyDoneLabel: '完了済み',
     shareStatus: { active: '進行中', done: '完了' },
     shareFieldCategory: 'カテゴリ',
     shareFieldPriority: '優先度',
@@ -798,6 +840,18 @@ const TRANSLATIONS = {
     focusModeExitBtn: '🎯 All Tasks',
     focusBanner: n => `Focus mode — top 3 tasks${n > 0 ? ` (${n} more hidden)` : ''}`,
     focusEmpty: '✨ No active tasks',
+    weeklyBtn: '📝 Weekly',
+    weeklyTitle: 'Weekly Summary',
+    weeklyDoneCount: 'Done (last 7d)',
+    weeklyCategories: 'Categories',
+    weeklyHighPriority: 'High-pri done',
+    weeklyRemaining: 'Still active',
+    weeklyGenerate: 'Generate AI summary',
+    weeklyRegenerate: 'Regenerate',
+    weeklyGenerating: 'Analyzing...',
+    weeklyNoTasks: 'No tasks completed in the last 7 days',
+    weeklyError: 'Failed to generate summary. Please try again.',
+    weeklyDoneLabel: 'Done',
     shareStatus: { active: 'Active', done: 'Done' },
     shareFieldCategory: 'Category',
     shareFieldPriority: 'Priority',
@@ -1044,6 +1098,75 @@ function StatsView({ data, T, onClose }) {
   )
 }
 
+// ─── WeeklySummaryView ────────────────────────────────────────────
+function WeeklySummaryView({ data, T, onClose, onGenerate, summaryText, loading }) {
+  const tasks = data.tasks
+  const now = new Date()
+  const weekAgo = new Date(now)
+  weekAgo.setDate(weekAgo.getDate() - 7)
+  const weekAgoStr = weekAgo.toISOString().slice(0, 10)
+
+  const doneTasks = tasks.filter(t => t.completedAt && t.completedAt.slice(0, 10) >= weekAgoStr)
+  const cats = [...new Set(doneTasks.map(t => t.category))].length
+  const highDone = doneTasks.filter(t => t.priority === 'high').length
+  const remaining = tasks.filter(t => t.status === 'active').length
+
+  return h('div', {
+    class: 'stats-overlay',
+    onClick: e => { if (e.target === e.currentTarget) onClose() },
+  },
+    h('div', { class: 'stats-sheet' },
+      h('div', { class: 'stats-header' },
+        h('h2', { style: 'font-size:1.15rem;font-weight:700' }, T.weeklyTitle),
+        h('button', { class: 'close-btn', onClick: onClose, style: 'font-size:1.2rem;padding:4px 8px' }, '✕')
+      ),
+      h('div', { class: 'stats-summary' },
+        h('div', { class: 'stat-card' },
+          h('div', { class: 'stat-num', style: 'color:var(--success)' }, doneTasks.length),
+          h('div', { class: 'stat-label' }, T.weeklyDoneCount)
+        ),
+        h('div', { class: 'stat-card' },
+          h('div', { class: 'stat-num', style: 'color:var(--primary)' }, cats),
+          h('div', { class: 'stat-label' }, T.weeklyCategories)
+        ),
+        h('div', { class: 'stat-card' },
+          h('div', { class: 'stat-num', style: 'color:#ff9500' }, highDone),
+          h('div', { class: 'stat-label' }, T.weeklyHighPriority)
+        ),
+        h('div', { class: 'stat-card' },
+          h('div', { class: 'stat-num', style: 'color:var(--muted)' }, remaining),
+          h('div', { class: 'stat-label' }, T.weeklyRemaining)
+        ),
+      ),
+      doneTasks.length === 0
+        ? h('p', { style: 'font-size:.85rem;color:var(--muted);padding:12px 0' }, T.weeklyNoTasks)
+        : h('div', null,
+            doneTasks.length > 0 && h('div', { class: 'weekly-tasks' },
+              doneTasks.slice(0, 8).map(t =>
+                h('div', { key: t.id, class: 'weekly-task-item' },
+                  h('span', { class: 'weekly-task-cat' }, t.category),
+                  h('span', { class: 'weekly-task-title' }, t.title)
+                )
+              ),
+              doneTasks.length > 8 && h('p', { style: 'font-size:.75rem;color:var(--muted);margin:4px 0 0' },
+                `+ ${doneTasks.length - 8} more`)
+            ),
+            h('div', { class: 'weekly-generate-row' },
+              h('button', {
+                class: 'btn-primary',
+                onClick: onGenerate,
+                disabled: loading,
+              }, loading
+                ? h(Fragment, null, h('span', { class: 'spin' }), ' ', T.weeklyGenerating)
+                : (summaryText ? T.weeklyRegenerate : T.weeklyGenerate)
+              )
+            ),
+            summaryText && h('div', { class: 'weekly-text' }, summaryText)
+          )
+    )
+  )
+}
+
 // ─── App ──────────────────────────────────────────────────────────
 function App() {
   const [data, setData] = useState(load)
@@ -1082,6 +1205,9 @@ function App() {
   const [draggingId, setDraggingId] = useState(null)
   const [dragOverId, setDragOverId] = useState(null)
   const [focusMode, setFocusMode] = useState(false)
+  const [showWeeklySummary, setShowWeeklySummary] = useState(false)
+  const [weeklySummaryText, setWeeklySummaryText] = useState('')
+  const [weeklyLoading, setWeeklyLoading] = useState(false)
 
   const lang = data.lang || 'ja'
   const T = TRANSLATIONS[lang]
@@ -1150,6 +1276,7 @@ function App() {
     const bd = updatedBoardData[id] || { tasks: [], categories: [], taskOrder: [] }
     persist({ ...data, tasks: bd.tasks, categories: bd.categories, taskOrder: bd.taskOrder || [], activeBoardId: id, boardData: updatedBoardData })
     setSelectedCat(null); setSearchText(''); setFocusMode(false)
+    setShowWeeklySummary(false); setWeeklySummaryText('')
   }
 
   const addBoard = () => {
@@ -1233,6 +1360,14 @@ function App() {
   }
 
   const handleQuery = () => handleQueryText(query)
+
+  const handleGenerateWeeklySummary = async () => {
+    if (!data.apiKey) { setShowSettings(true); return }
+    setWeeklyLoading(true); setWeeklySummaryText('')
+    try { setWeeklySummaryText(await generateWeeklySummary(data.apiKey, data.tasks, lang)) }
+    catch (e) { setWeeklySummaryText(T.weeklyError) }
+    finally { setWeeklyLoading(false) }
+  }
 
   const handleSuggest = async taskId => {
     const task = data.tasks.find(t => t.id === taskId)
@@ -1531,6 +1666,7 @@ function App() {
             onClick: () => setFocusMode(m => !m),
             title: focusMode ? T.focusModeExitBtn : T.focusModeBtn,
           }, focusMode ? T.focusModeExitBtn : T.focusModeBtn),
+          !batchMode && data.tasks.some(t => t.completedAt) && h('button', { class: 'btn-ghost', onClick: () => setShowWeeklySummary(s => !s) }, T.weeklyBtn),
           !batchMode && data.tasks.length > 0 && h('button', { class: 'btn-ghost', onClick: () => setShowStats(s => !s) }, T.statsBtn),
           !batchMode && h('button', { class: 'btn-ghost', onClick: () => setShowSettings(s => !s) }, T.settings)
         )
@@ -1841,6 +1977,14 @@ function App() {
     ),
 
     showStats && h(StatsView, { data, T, onClose: () => setShowStats(false) }),
+
+    showWeeklySummary && h(WeeklySummaryView, {
+      data, T,
+      onClose: () => setShowWeeklySummary(false),
+      onGenerate: handleGenerateWeeklySummary,
+      summaryText: weeklySummaryText,
+      loading: weeklyLoading,
+    }),
 
     showAddBoard && h('div', { class: 'board-modal-overlay', onClick: e => { if (e.target === e.currentTarget) setShowAddBoard(false) } },
       h('div', { class: 'board-modal' },
