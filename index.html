@@ -433,6 +433,34 @@
       background:var(--border);color:var(--muted);flex-shrink:0}
     .weekly-task-title{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     .weekly-generate-row{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+    /* Journal */
+    .journal-date-header{font-size:.88rem;font-weight:600;color:var(--primary);margin-bottom:12px}
+    .journal-mood-row{display:flex;gap:6px;margin-bottom:14px;align-items:center}
+    .journal-mood-label{font-size:.82rem;color:var(--muted);flex-shrink:0;margin-right:4px}
+    .mood-btn{font-size:1.4rem;background:none;border:2px solid transparent;border-radius:10px;
+      padding:3px 6px;cursor:pointer;transition:all .15s;line-height:1.2}
+    .mood-btn.active{border-color:var(--primary);background:var(--primary)18}
+    .mood-btn:hover:not(.active){background:var(--border)}
+    .journal-textarea{width:100%;min-height:140px;padding:10px 12px;border:1px solid var(--border);
+      border-radius:10px;font-size:.92rem;font-family:inherit;line-height:1.65;
+      resize:vertical;outline:none;background:var(--surface);color:var(--text);
+      transition:border-color .15s}
+    .journal-textarea:focus{border-color:var(--primary)}
+    .journal-auto-save{font-size:.72rem;color:var(--success);margin-top:4px;min-height:1em;text-align:right}
+    .journal-past-title{font-size:.88rem;font-weight:600;margin:18px 0 10px;color:var(--text);
+      border-top:1px solid var(--border);padding-top:16px}
+    .journal-past-entry{border-radius:10px;border:1px solid var(--border);overflow:hidden;margin-bottom:8px}
+    .journal-past-header{display:flex;align-items:center;gap:8px;padding:9px 12px;cursor:pointer;
+      background:var(--surface);transition:background .12s;user-select:none}
+    .journal-past-header:hover{background:var(--bg)}
+    .journal-past-date{font-size:.82rem;font-weight:500;color:var(--text);white-space:nowrap}
+    .journal-past-mood{font-size:1.1rem;line-height:1;flex-shrink:0}
+    .journal-past-snippet{font-size:.78rem;color:var(--muted);flex:1;min-width:0;overflow:hidden;
+      text-overflow:ellipsis;white-space:nowrap;margin:0 8px}
+    .journal-past-arrow{font-size:.7rem;color:var(--muted);flex-shrink:0}
+    .journal-past-body{padding:10px 12px;font-size:.85rem;line-height:1.65;color:var(--text);
+      background:var(--bg);white-space:pre-wrap;border-top:1px solid var(--border)}
+    .journal-no-entries{font-size:.85rem;color:var(--muted);padding:16px 0;text-align:center;font-style:italic}
   </style>
 </head>
 <body>
@@ -551,7 +579,7 @@ async function generateWeeklySummary(apiKey, tasks, lang) {
 
 // ─── Storage ──────────────────────────────────────────────────────
 const KEY = 'brain-dump-v1'
-const DEFAULTS = {tasks:[],categories:[],apiKey:'',lang:'ja',onboarded:false,notificationsEnabled:false,boards:[],activeBoardId:null,boardData:{},taskOrder:[]}
+const DEFAULTS = {tasks:[],categories:[],apiKey:'',lang:'ja',onboarded:false,notificationsEnabled:false,boards:[],activeBoardId:null,boardData:{},taskOrder:[],journal:{}}
 const load = () => {
   try {
     const raw = { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) || 'null') }
@@ -709,6 +737,14 @@ const TRANSLATIONS = {
     weeklyNoTasks: '先週（7日以内）に完了したタスクはありません',
     weeklyError: 'サマリーの生成に失敗しました。もう一度お試しください。',
     weeklyDoneLabel: '完了済み',
+    journalBtn: '📓 日誌',
+    journalTitle: '今日の日誌',
+    journalTodayLabel: '今日',
+    journalMoodLabel: '気分',
+    journalTextPlaceholder: '今日あったこと、気持ち、思ったことを自由に...',
+    journalPastTitle: '過去の記録',
+    journalNoEntries: 'まだ記録がありません。今日の気持ちを書いてみましょう。',
+    journalSaved: '✓ 保存済み',
     shareStatus: { active: '進行中', done: '完了' },
     shareFieldCategory: 'カテゴリ',
     shareFieldPriority: '優先度',
@@ -852,6 +888,14 @@ const TRANSLATIONS = {
     weeklyNoTasks: 'No tasks completed in the last 7 days',
     weeklyError: 'Failed to generate summary. Please try again.',
     weeklyDoneLabel: 'Done',
+    journalBtn: '📓 Journal',
+    journalTitle: "Today's Journal",
+    journalTodayLabel: 'Today',
+    journalMoodLabel: 'Mood',
+    journalTextPlaceholder: 'Write about your day, thoughts, and feelings...',
+    journalPastTitle: 'Past Entries',
+    journalNoEntries: 'No entries yet. Write something about today.',
+    journalSaved: '✓ Saved',
     shareStatus: { active: 'Active', done: 'Done' },
     shareFieldCategory: 'Category',
     shareFieldPriority: 'Priority',
@@ -1167,6 +1211,98 @@ function WeeklySummaryView({ data, T, onClose, onGenerate, summaryText, loading 
   )
 }
 
+// ─── JournalView ──────────────────────────────────────────────────
+function JournalView({ journal, T, onClose, onSave }) {
+  const today = new Date().toISOString().slice(0, 10)
+  const todayEntry = journal[today] || { text: '', mood: '' }
+  const [text, setText] = useState(todayEntry.text)
+  const [mood, setMood] = useState(todayEntry.mood)
+  const [expanded, setExpanded] = useState(new Set())
+  const [saved, setSaved] = useState(false)
+  const saveTimer = useRef(null)
+  const MOODS = ['😄', '🙂', '😐', '😕', '😢']
+
+  const doSave = useCallback((t, m) => {
+    onSave(today, { text: t, mood: m, savedAt: new Date().toISOString() })
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+  }, [today, onSave])
+
+  const handleText = e => {
+    const val = e.target.value
+    setText(val)
+    clearTimeout(saveTimer.current)
+    saveTimer.current = setTimeout(() => doSave(val, mood), 700)
+  }
+
+  const handleMood = m => {
+    setMood(m)
+    clearTimeout(saveTimer.current)
+    doSave(text, m)
+  }
+
+  const pastDays = Array.from({ length: 6 }, (_, i) => {
+    const d = new Date()
+    d.setDate(d.getDate() - (i + 1))
+    return d.toISOString().slice(0, 10)
+  }).filter(d => journal[d] && journal[d].text)
+
+  const toggleExpanded = d => setExpanded(prev => {
+    const next = new Set(prev)
+    next.has(d) ? next.delete(d) : next.add(d)
+    return next
+  })
+
+  const fmtDay = d => new Date(d + 'T12:00:00').toLocaleDateString(T.locale, { month: 'numeric', day: 'numeric', weekday: 'short' })
+
+  return h('div', {
+    class: 'stats-overlay',
+    onClick: e => { if (e.target === e.currentTarget) onClose() },
+  },
+    h('div', { class: 'stats-sheet' },
+      h('div', { class: 'stats-header' },
+        h('h2', { style: 'font-size:1.15rem;font-weight:700' }, T.journalTitle),
+        h('button', { class: 'close-btn', onClick: onClose, style: 'font-size:1.2rem;padding:4px 8px' }, '✕')
+      ),
+      h('div', { class: 'journal-date-header' }, `${T.journalTodayLabel} · ${fmtDay(today)}`),
+      h('div', { class: 'journal-mood-row' },
+        h('span', { class: 'journal-mood-label' }, T.journalMoodLabel),
+        MOODS.map(m => h('button', {
+          key: m,
+          class: `mood-btn${mood === m ? ' active' : ''}`,
+          onClick: () => handleMood(m),
+        }, m))
+      ),
+      h('textarea', {
+        class: 'journal-textarea',
+        placeholder: T.journalTextPlaceholder,
+        value: text,
+        onInput: handleText,
+        autofocus: true,
+      }),
+      h('div', { class: 'journal-auto-save' }, saved ? T.journalSaved : ''),
+      pastDays.length > 0
+        ? h(Fragment, null,
+            h('div', { class: 'journal-past-title' }, T.journalPastTitle),
+            pastDays.map(d => {
+              const entry = journal[d]
+              const isOpen = expanded.has(d)
+              return h('div', { key: d, class: 'journal-past-entry' },
+                h('div', { class: 'journal-past-header', onClick: () => toggleExpanded(d) },
+                  entry.mood && h('span', { class: 'journal-past-mood' }, entry.mood),
+                  h('span', { class: 'journal-past-date' }, fmtDay(d)),
+                  !isOpen && h('span', { class: 'journal-past-snippet' }, entry.text.slice(0, 50).replace(/\n/g, ' ')),
+                  h('span', { class: 'journal-past-arrow' }, isOpen ? '▲' : '▼')
+                ),
+                isOpen && h('div', { class: 'journal-past-body' }, entry.text)
+              )
+            })
+          )
+        : text === '' && h('p', { class: 'journal-no-entries' }, T.journalNoEntries)
+    )
+  )
+}
+
 // ─── App ──────────────────────────────────────────────────────────
 function App() {
   const [data, setData] = useState(load)
@@ -1208,6 +1344,7 @@ function App() {
   const [showWeeklySummary, setShowWeeklySummary] = useState(false)
   const [weeklySummaryText, setWeeklySummaryText] = useState('')
   const [weeklyLoading, setWeeklyLoading] = useState(false)
+  const [showJournal, setShowJournal] = useState(false)
 
   const lang = data.lang || 'ja'
   const T = TRANSLATIONS[lang]
@@ -1267,6 +1404,12 @@ function App() {
     setData(next)
     localStorage.setItem(KEY, JSON.stringify(next))
   }, [])
+
+  const saveJournalEntry = useCallback((date, entry) => {
+    const next = { ...data, journal: { ...(data.journal || {}), [date]: entry } }
+    setData(next)
+    localStorage.setItem(KEY, JSON.stringify(next))
+  }, [data])
 
   const toggleLang = () => persist({ ...data, lang: lang === 'ja' ? 'en' : 'ja' })
 
@@ -1668,6 +1811,7 @@ function App() {
           }, focusMode ? T.focusModeExitBtn : T.focusModeBtn),
           !batchMode && data.tasks.some(t => t.completedAt) && h('button', { class: 'btn-ghost', onClick: () => setShowWeeklySummary(s => !s) }, T.weeklyBtn),
           !batchMode && data.tasks.length > 0 && h('button', { class: 'btn-ghost', onClick: () => setShowStats(s => !s) }, T.statsBtn),
+          !batchMode && h('button', { class: 'btn-ghost', onClick: () => setShowJournal(s => !s) }, T.journalBtn),
           !batchMode && h('button', { class: 'btn-ghost', onClick: () => setShowSettings(s => !s) }, T.settings)
         )
       ),
@@ -1984,6 +2128,13 @@ function App() {
       onGenerate: handleGenerateWeeklySummary,
       summaryText: weeklySummaryText,
       loading: weeklyLoading,
+    }),
+
+    showJournal && h(JournalView, {
+      journal: data.journal || {},
+      T,
+      onClose: () => setShowJournal(false),
+      onSave: saveJournalEntry,
     }),
 
     showAddBoard && h('div', { class: 'board-modal-overlay', onClick: e => { if (e.target === e.currentTarget) setShowAddBoard(false) } },
