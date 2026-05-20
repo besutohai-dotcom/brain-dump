@@ -461,6 +461,23 @@
     .journal-past-body{padding:10px 12px;font-size:.85rem;line-height:1.65;color:var(--text);
       background:var(--bg);white-space:pre-wrap;border-top:1px solid var(--border)}
     .journal-no-entries{font-size:.85rem;color:var(--muted);padding:16px 0;text-align:center;font-style:italic}
+    /* Pomodoro Timer */
+    .pomo-ring-wrap{display:flex;justify-content:center;margin:10px 0 4px;position:relative}
+    .pomo-ring{transform:rotate(-90deg)}
+    .pomo-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+    .pomo-time{font-size:2.4rem;font-weight:700;letter-spacing:-.03em;font-variant-numeric:tabular-nums;line-height:1}
+    .pomo-phase-label{font-size:.75rem;color:var(--muted);margin-top:3px;font-weight:500}
+    .pomo-task-select{width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;
+      font-family:inherit;font-size:.88rem;outline:none;background:var(--surface);color:var(--text);margin-bottom:12px}
+    .pomo-task-select:focus{border-color:var(--primary)}
+    .pomo-controls{display:flex;gap:8px;justify-content:center;margin:16px 0 12px;flex-wrap:wrap}
+    .pomo-session-dots{display:flex;gap:8px;justify-content:center;margin-bottom:6px}
+    .pomo-dot{width:11px;height:11px;border-radius:50%;border:2px solid var(--border);background:transparent;transition:all .25s}
+    .pomo-dot.done{background:var(--primary);border-color:var(--primary)}
+    .pomo-task-pomos{text-align:center;font-size:.8rem;color:var(--muted);margin-bottom:4px}
+    .pomo-task-pomos b{color:var(--primary)}
+    .pomo-count-badge{font-size:.7rem;font-weight:600;padding:2px 7px;border-radius:10px;
+      border:1px solid #ff6b3055;background:#ff6b3018;color:#ff6b30;display:inline-flex;align-items:center;gap:2px}
   </style>
 </head>
 <body>
@@ -575,6 +592,20 @@ async function generateWeeklySummary(apiKey, tasks, lang) {
   const list = done.map(t => `- [${t.category}] ${t.title}${t.priority === 'high' ? '（高優先度）' : ''}`).join('\n')
   return callClaude(apiKey,
     `あなたはサポート力のある生産性コーチです。ユーザーが先週（7日以内）に完了した${done.length}件のタスクは以下の通りです：\n${list}\n\n次の内容を含む温かく励みになる週間レビューを3〜5段落で書いてください：\n1. 達成した内容（主なテーマとハイライト）\n2. 目立ったパターンや成果\n3. 来週に向けた1〜2つの具体的な提案\n\n具体的、簡潔、前向きな文体でお願いします。`, 1024)
+}
+
+// ─── Audio ────────────────────────────────────────────────────────
+function playBeep(freq = 880, dur = 0.35) {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)()
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.connect(gain); gain.connect(ctx.destination)
+    osc.type = 'sine'; osc.frequency.value = freq
+    gain.gain.setValueAtTime(0.28, ctx.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur)
+    osc.start(ctx.currentTime); osc.stop(ctx.currentTime + dur)
+  } catch {}
 }
 
 // ─── Storage ──────────────────────────────────────────────────────
@@ -752,6 +783,20 @@ const TRANSLATIONS = {
     shareFieldRecur: '繰り返し',
     shareFieldStatus: 'ステータス',
     shareFieldNotes: 'メモ',
+    pomodoroBtn: '🍅 集中',
+    pomodoroTitle: 'ポモドーロタイマー',
+    pomodoroSelectDefault: '— タスクを選んで集中 —',
+    pomodoroStart: '▶ 開始',
+    pomodoroPause: '⏸ 一時停止',
+    pomodoroResume: '▶ 再開',
+    pomodoroReset: '↩ リセット',
+    pomodoroSkip: 'スキップ →',
+    pomodoroWork: '🍅 作業中',
+    pomodoroShortBreak: '☕ 短い休憩',
+    pomodoroLongBreak: '🌿 長い休憩',
+    pomodoroIdle: '準備完了',
+    pomodoroSessions: n => `このタスク: ${n} 🍅`,
+    pomodoroNoTasks: 'アクティブなタスクがありません',
     onboarding: {
       title: 'ブレインダンプへようこそ',
       desc: '頭の中のアイデアやタスクを素早くキャプチャ。AIが自動で整理・分類してくれます。',
@@ -903,6 +948,20 @@ const TRANSLATIONS = {
     shareFieldRecur: 'Repeat',
     shareFieldStatus: 'Status',
     shareFieldNotes: 'Notes',
+    pomodoroBtn: '🍅 Focus',
+    pomodoroTitle: 'Pomodoro Timer',
+    pomodoroSelectDefault: '— choose a task to focus on —',
+    pomodoroStart: '▶ Start',
+    pomodoroPause: '⏸ Pause',
+    pomodoroResume: '▶ Resume',
+    pomodoroReset: '↩ Reset',
+    pomodoroSkip: 'Skip →',
+    pomodoroWork: '🍅 Work',
+    pomodoroShortBreak: '☕ Short Break',
+    pomodoroLongBreak: '🌿 Long Break',
+    pomodoroIdle: 'Ready',
+    pomodoroSessions: n => `This task: ${n} 🍅`,
+    pomodoroNoTasks: 'No active tasks',
     onboarding: {
       title: 'Welcome to Brain Dump',
       desc: 'Quickly capture ideas and tasks from your mind. AI automatically organizes everything for you.',
@@ -1303,6 +1362,95 @@ function JournalView({ journal, T, onClose, onSave }) {
   )
 }
 
+// ─── PomodoroView ─────────────────────────────────────────────────
+const POMO_WORK = 25 * 60
+const POMO_SHORT = 5 * 60
+const POMO_LONG = 15 * 60
+
+function PomodoroView({ data, T, onClose, timerState, onAction }) {
+  const activeTasks = data.tasks.filter(t => t.status === 'active')
+  const selectedTask = timerState.taskId ? data.tasks.find(t => t.id === timerState.taskId) : null
+
+  const totalSecs = timerState.phase === 'short-break' ? POMO_SHORT
+    : timerState.phase === 'long-break' ? POMO_LONG : POMO_WORK
+  const progress = timerState.phase === 'idle' ? 0 : 1 - timerState.remaining / totalSecs
+
+  const R = 68
+  const CIRC = 2 * Math.PI * R
+  const offset = CIRC * (1 - progress)
+
+  const phaseColor = timerState.phase === 'work' ? '#ff3b30'
+    : timerState.phase === 'short-break' ? '#34c759'
+    : timerState.phase === 'long-break' ? '#30b0c7'
+    : 'var(--muted)'
+
+  const phaseLabel = timerState.phase === 'work' ? T.pomodoroWork
+    : timerState.phase === 'short-break' ? T.pomodoroShortBreak
+    : timerState.phase === 'long-break' ? T.pomodoroLongBreak
+    : T.pomodoroIdle
+
+  const mins = Math.floor(timerState.remaining / 60).toString().padStart(2, '0')
+  const secs = (timerState.remaining % 60).toString().padStart(2, '0')
+  const sessionDots = Array.from({ length: 4 }, (_, i) => (timerState.sessionCount % 4) > i)
+
+  return h('div', {
+    class: 'stats-overlay',
+    onClick: e => { if (e.target === e.currentTarget) onClose() },
+  },
+    h('div', { class: 'stats-sheet' },
+      h('div', { class: 'stats-header' },
+        h('h2', { style: 'font-size:1.15rem;font-weight:700' }, T.pomodoroTitle),
+        h('button', { class: 'close-btn', onClick: onClose, style: 'font-size:1.2rem;padding:4px 8px' }, '✕')
+      ),
+      activeTasks.length === 0
+        ? h('p', { style: 'text-align:center;color:var(--muted);font-size:.88rem;padding:20px 0' }, T.pomodoroNoTasks)
+        : h('select', {
+            class: 'pomo-task-select',
+            value: timerState.taskId || '',
+            onChange: e => onAction('setTask', e.target.value),
+            disabled: timerState.running,
+          },
+            h('option', { value: '' }, T.pomodoroSelectDefault),
+            activeTasks.map(t => h('option', { key: t.id, value: t.id }, t.title))
+          ),
+      h('div', { class: 'pomo-ring-wrap' },
+        h('svg', { class: 'pomo-ring', width: 160, height: 160, viewBox: '0 0 160 160' },
+          h('circle', { cx: 80, cy: 80, r: R, style: 'fill:none;stroke:var(--border);stroke-width:9' }),
+          timerState.phase !== 'idle' && h('circle', {
+            cx: 80, cy: 80, r: R,
+            style: `fill:none;stroke:${phaseColor};stroke-width:9;stroke-linecap:round;stroke-dasharray:${CIRC};stroke-dashoffset:${offset};transition:stroke-dashoffset .9s linear`,
+          })
+        ),
+        h('div', { class: 'pomo-center' },
+          h('div', { class: 'pomo-time', style: `color:${timerState.phase !== 'idle' ? phaseColor : 'var(--text)'}` }, `${mins}:${secs}`),
+          h('div', { class: 'pomo-phase-label' }, phaseLabel)
+        )
+      ),
+      h('div', { class: 'pomo-session-dots' },
+        sessionDots.map((done, i) => h('div', { key: i, class: `pomo-dot${done ? ' done' : ''}` }))
+      ),
+      selectedTask && h('div', { class: 'pomo-task-pomos' },
+        T.pomodoroSessions(selectedTask.pomodoroCount || 0)
+      ),
+      h('div', { class: 'pomo-controls' },
+        timerState.phase === 'idle'
+          ? h('button', {
+              class: 'btn-primary', disabled: !timerState.taskId,
+              onClick: () => onAction('start'),
+            }, T.pomodoroStart)
+          : h(Fragment, null,
+              h('button', {
+                class: 'btn-primary',
+                onClick: () => onAction(timerState.running ? 'pause' : 'resume'),
+              }, timerState.running ? T.pomodoroPause : T.pomodoroResume),
+              h('button', { class: 'btn-secondary', onClick: () => onAction('skip') }, T.pomodoroSkip),
+              h('button', { class: 'btn-ghost', onClick: () => onAction('reset') }, T.pomodoroReset)
+            )
+      )
+    )
+  )
+}
+
 // ─── App ──────────────────────────────────────────────────────────
 function App() {
   const [data, setData] = useState(load)
@@ -1338,6 +1486,8 @@ function App() {
   )
   const toastTimer = useRef(null)
   const draggingIdRef = useRef(null)
+  const timerRef = useRef(null)
+  const pomodoroDataRef = useRef(null)
   const [draggingId, setDraggingId] = useState(null)
   const [dragOverId, setDragOverId] = useState(null)
   const [focusMode, setFocusMode] = useState(false)
@@ -1345,14 +1495,55 @@ function App() {
   const [weeklySummaryText, setWeeklySummaryText] = useState('')
   const [weeklyLoading, setWeeklyLoading] = useState(false)
   const [showJournal, setShowJournal] = useState(false)
+  const [showPomodoro, setShowPomodoro] = useState(false)
+  const [timerState, setTimerState] = useState({ phase: 'idle', running: false, remaining: POMO_WORK, taskId: null, sessionCount: 0, pomoDone: null })
 
   const lang = data.lang || 'ja'
   const T = TRANSLATIONS[lang]
 
   useEffect(() => {
-    document.title = T.appTitle
+    if (timerState.running) {
+      const m = Math.floor(timerState.remaining / 60).toString().padStart(2, '0')
+      const s = (timerState.remaining % 60).toString().padStart(2, '0')
+      document.title = `${m}:${s} — ${T.appTitle}`
+    } else {
+      document.title = T.appTitle
+    }
     document.documentElement.lang = lang
-  }, [lang])
+  }, [lang, timerState.running, timerState.remaining])
+
+  useEffect(() => { pomodoroDataRef.current = { data, persist } })
+
+  useEffect(() => {
+    if (!timerState.running) { clearInterval(timerRef.current); return }
+    timerRef.current = setInterval(() => {
+      setTimerState(prev => {
+        if (!prev.running) return prev
+        if (prev.remaining <= 1) {
+          clearInterval(timerRef.current)
+          playBeep(prev.phase === 'work' ? 880 : 660, 0.35)
+          if (prev.phase === 'work') {
+            const newSC = (prev.sessionCount || 0) + 1
+            const isLong = newSC % 4 === 0
+            return { ...prev, running: false, phase: isLong ? 'long-break' : 'short-break', remaining: isLong ? POMO_LONG : POMO_SHORT, sessionCount: newSC, pomoDone: prev.taskId }
+          }
+          return { ...prev, running: false, phase: 'idle', remaining: POMO_WORK, pomoDone: null }
+        }
+        return { ...prev, remaining: prev.remaining - 1 }
+      })
+    }, 1000)
+    return () => clearInterval(timerRef.current)
+  }, [timerState.running])
+
+  useEffect(() => {
+    if (!timerState.pomoDone) return
+    const taskId = timerState.pomoDone
+    if (pomodoroDataRef.current) {
+      const { data: d, persist: p } = pomodoroDataRef.current
+      p({ ...d, tasks: d.tasks.map(t => t.id === taskId ? { ...t, pomodoroCount: (t.pomodoroCount || 0) + 1 } : t) })
+    }
+    setTimerState(prev => ({ ...prev, pomoDone: null }))
+  }, [timerState.pomoDone])
 
   const inputSpeech = useSpeech(text => setInput(prev => prev ? prev + ' ' + text : text), lang)
   const querySpeech = useSpeech(text => {
@@ -1410,6 +1601,42 @@ function App() {
     setData(next)
     localStorage.setItem(KEY, JSON.stringify(next))
   }, [data])
+
+  const handleTimerAction = (action, payload) => {
+    switch (action) {
+      case 'start':
+        setTimerState(prev => ({ ...prev, phase: 'work', running: true, remaining: POMO_WORK }))
+        break
+      case 'pause':
+        setTimerState(prev => ({ ...prev, running: false }))
+        break
+      case 'resume':
+        setTimerState(prev => ({ ...prev, running: true }))
+        break
+      case 'reset':
+        clearInterval(timerRef.current)
+        setTimerState(prev => ({ ...prev, phase: 'idle', running: false, remaining: POMO_WORK, pomoDone: null }))
+        break
+      case 'skip':
+        clearInterval(timerRef.current)
+        setTimerState(prev => {
+          if (prev.phase === 'work') {
+            const newSC = (prev.sessionCount || 0) + 1
+            if (prev.taskId && pomodoroDataRef.current) {
+              const { data: d, persist: p } = pomodoroDataRef.current
+              p({ ...d, tasks: d.tasks.map(t => t.id === prev.taskId ? { ...t, pomodoroCount: (t.pomodoroCount || 0) + 1 } : t) })
+            }
+            const isLong = newSC % 4 === 0
+            return { ...prev, running: false, phase: isLong ? 'long-break' : 'short-break', remaining: isLong ? POMO_LONG : POMO_SHORT, sessionCount: newSC }
+          }
+          return { ...prev, running: false, phase: 'idle', remaining: POMO_WORK }
+        })
+        break
+      case 'setTask':
+        setTimerState(prev => ({ ...prev, taskId: payload || null }))
+        break
+    }
+  }
 
   const toggleLang = () => persist({ ...data, lang: lang === 'ja' ? 'en' : 'ja' })
 
@@ -1812,6 +2039,13 @@ function App() {
           !batchMode && data.tasks.some(t => t.completedAt) && h('button', { class: 'btn-ghost', onClick: () => setShowWeeklySummary(s => !s) }, T.weeklyBtn),
           !batchMode && data.tasks.length > 0 && h('button', { class: 'btn-ghost', onClick: () => setShowStats(s => !s) }, T.statsBtn),
           !batchMode && h('button', { class: 'btn-ghost', onClick: () => setShowJournal(s => !s) }, T.journalBtn),
+          !batchMode && data.tasks.filter(t => t.status === 'active').length > 0 && h('button', {
+            class: `btn-ghost${showPomodoro ? ' lang-btn' : ''}`,
+            onClick: () => setShowPomodoro(s => !s),
+            title: T.pomodoroTitle,
+          }, timerState.running
+            ? `${Math.floor(timerState.remaining/60).toString().padStart(2,'0')}:${(timerState.remaining%60).toString().padStart(2,'0')}`
+            : T.pomodoroBtn),
           !batchMode && h('button', { class: 'btn-ghost', onClick: () => setShowSettings(s => !s) }, T.settings)
         )
       ),
@@ -2009,6 +2243,7 @@ function App() {
                   onClick: () => togglePriority(task.id), title: T.priorityTitle }, pLabel),
                 dueDateInfo && h('span', { class: `due-badge ${dueDateInfo.cls}` }, dueDateInfo.label),
                 task.recurrence && h('span', { class: 'recur-badge' }, T.recurBadge(task.recurrence)),
+                task.pomodoroCount > 0 && h('span', { class: 'pomo-count-badge', title: T.pomodoroSessions(task.pomodoroCount) }, `🍅×${task.pomodoroCount}`),
                 h('span', { class: 'task-date' }, new Date(task.createdAt).toLocaleDateString(T.locale, {month:'numeric',day:'numeric'}))
               ),
               !batchMode && h('div', { class: 'task-btns' },
@@ -2135,6 +2370,14 @@ function App() {
       T,
       onClose: () => setShowJournal(false),
       onSave: saveJournalEntry,
+    }),
+
+    showPomodoro && h(PomodoroView, {
+      data,
+      T,
+      onClose: () => setShowPomodoro(false),
+      timerState,
+      onAction: handleTimerAction,
     }),
 
     showAddBoard && h('div', { class: 'board-modal-overlay', onClick: e => { if (e.target === e.currentTarget) setShowAddBoard(false) } },
