@@ -1,7 +1,7 @@
 # Brain Dump Roadmap
 
 Managed by an autonomous Claude agent. Updated after each improvement cycle.
-Last updated: 2026-05-19
+Last updated: 2026-05-20
 
 ## Done
 - [x] Core app: brain dump input to AI categorization to task list
@@ -39,7 +39,9 @@ Last updated: 2026-05-19
 
 ## Planned (priority order)
 
-_(no items -- all roadmap features shipped!)_
+- [x] Pomodoro Timer -- 25/5/15-min work/break cycles, SVG ring, task linking, session tracking
+
+_(all roadmap features shipped!)_
 
 ## Test Log
 
@@ -62,6 +64,7 @@ _(no items -- all roadmap features shipped!)_
 | 2026-05-17 | Focus mode (top 3 active tasks, header toggle, banner, bilingual) | Deployed | OK |
 | 2026-05-18 | Weekly summary (AI review, stats cards, task list, regenerate) | Deployed | OK |
 | 2026-05-19 | Daily journal (mood, auto-save, past entries, bilingual) | Deployed | OK |
+| 2026-05-20 | Pomodoro Timer (SVG ring, task linking, session dots, count badge) | Deployed | OK |
 
 ## User Ideas
 - Voice input for easier navigation (done)
@@ -89,6 +92,7 @@ _(no items -- all roadmap features shipped!)_
 - 2026-05-16: Drag to reorder -- drag handle on each card, HTML5 DnD, per-board manual order in localStorage; falls back to priority sort; backward-compatible
 - 2026-05-15: Share task -- button on each task card; builds formatted text summary; copies to clipboard via Clipboard API with fallback; toast confirmation; bilingual
 - 2026-05-18: Weekly summary -- header button; bottom-sheet overlay with 4 stat cards; task list preview; AI-generated review; regenerate support; bilingual
+- 2026-05-20: Pomodoro Timer -- 25/5/15-min cycles, SVG ring, task selector, session dots, count badge on cards, tab title countdown
 - 2026-05-19: Daily journal -- journal button always visible; bottom-sheet with mood selector (5 emojis), large textarea, auto-save (700ms debounce); past 6 days shown as collapsible entries; journal stored globally in localStorage (not per-board); bilingual
 
 ## 2026-05-19 - Daily Journal
